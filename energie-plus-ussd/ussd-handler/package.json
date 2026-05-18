@@ -1,0 +1,19 @@
+{
+  "name": "energie-plus-ussd-handler",
+  "version": "1.0.0",
+  "description": "USSD handler for ENERGIE PLUS system",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
