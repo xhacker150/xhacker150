@@ -1,0 +1,83 @@
+version: '3.9'
+
+networks:
+  energie-plus-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-energie_plus}
+      POSTGRES_USER: ${DB_USER:-energie_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_prod}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    networks:
+      - energie-plus-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-energie_user} -d ${DB_NAME:-energie_plus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - energie-plus-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend-api:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-energie_plus}
+      DB_USER: ${DB_USER:-energie_user}
+      DB_PASSWORD: ${DB_PASSWORD:-change_me_in_prod}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      API_KEY: ${API_KEY:-ussd-service-secret-key-change-in-prod}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_prod}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-ENERGIEPLUS}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - energie-plus-net
+
+  ussd-handler:
+    build:
+      context: ./ussd-handler
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      BACKEND_URL: ${BACKEND_URL:-http://backend-api:3000}
+      API_KEY: ${API_KEY:-ussd-service-secret-key-change-in-prod}
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend-api
+      - redis
+    networks:
+      - energie-plus-net
