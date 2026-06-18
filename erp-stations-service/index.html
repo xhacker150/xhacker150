@@ -670,6 +670,7 @@ if(sb){
       showTab("saisie");
       // charger le profil et les données en arrière-plan
       await loadMe(session.user);
+      fillCtx(); // rafraîchir email + rôle dans la barre maintenant qu'on les a
       document.getElementById("roleBanner").style.display=(me.role!=="admin"&&!me.station_id)?"block":"none";
       document.getElementById("roleBanner").textContent="Votre compte n'a pas encore de station assignée. Demandez à un administrateur.";
       try{ await reloadAll(); startRealtime(); showTab("saisie"); }
