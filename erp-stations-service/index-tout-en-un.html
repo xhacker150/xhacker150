@@ -228,10 +228,31 @@
         <input id="newTarDate" type="date" class="cell" style="max-width:170px;border:1px solid var(--line)"/>
         <button class="btn small" id="addTarif">Ajouter</button></div></div>
 
-    <div class="panel" id="usersPanel" style="display:none"><h2>Utilisateurs & rôles</h2>
-      <div class="sub">Attribuez le rôle et, pour un gérant, sa station. L'utilisateur doit déjà avoir créé son compte.</div>
-      <table><thead><tr><th>E-mail</th><th>Rôle</th><th>Station assignée</th><th style="width:40px"></th></tr></thead><tbody id="userBody"></tbody></table>
-      <div class="help" style="margin-top:8px">Modifiez le rôle/station via les menus de chaque ligne. Les changements s'appliquent immédiatement.</div></div>
+    <div class="panel" id="usersPanel" style="display:none"><h2>Utilisateurs &amp; rôles</h2>
+      <div class="sub">Gérez les rôles et stations de chaque utilisateur. L'utilisateur doit déjà avoir créé son compte ou vous pouvez en créer un directement.</div>
+      <table><thead><tr><th>E-mail</th><th>Rôle</th><th>Stations assignées</th><th style="width:40px"></th></tr></thead><tbody id="userBody"></tbody></table>
+      <details style="margin-top:14px"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Créer un nouveau compte utilisateur ▸</summary>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+          <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">E-mail</label>
+            <input id="nuEmail" type="email" class="cell" style="max-width:220px;border:1px solid var(--line)" placeholder="email@exemple.com"/></div>
+          <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">Mot de passe</label>
+            <input id="nuPass" type="password" class="cell" style="max-width:160px;border:1px solid var(--line)" placeholder="min 6 caractères"/></div>
+          <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">Rôle</label>
+            <select id="nuRole" class="cell" style="border:1px solid var(--line)">
+              <option value="gerant">Gérant</option>
+              <option value="agent_facturation">Agent facturation</option>
+              <option value="chef_piste">Chef de piste</option>
+              <option value="comptable">Comptable</option>
+              <option value="admin">Administrateur</option>
+            </select></div>
+          <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">Stations (plusieurs possibles)</label>
+            <select id="nuStations" multiple class="cell" style="border:1px solid var(--line);min-width:200px;height:80px"></select></div>
+          <div style="align-self:flex-end"><button class="btn small" id="btnCreateUser">Créer le compte</button>
+            <span id="createUserRes" class="help" style="margin-left:8px"></span></div>
+        </div>
+      </details>
+      <div class="help" style="margin-top:8px">Modifiez le rôle/stations via les menus. Ctrl+clic (ou Cmd+clic) pour sélectionner plusieurs stations.</div>
+    </div>
     <div class="panel"><h2>Sauvegarde locale</h2><div class="sub">Export ponctuel (les données vivent dans Supabase).</div>
       <div class="row"><button class="btn ghost" id="btnBackup">Exporter une sauvegarde (.json)</button></div></div>
   </section>
@@ -278,13 +299,14 @@ const Store = {
   async saveBon(b){ const {error}=await sb.from("bons").upsert(b); if(error)throw error; },
   async delBon(id){ const {error}=await sb.from("bons").delete().eq("id",id); if(error)throw error; },
   async updateProfile(id,patch){ const {error}=await sb.from("profiles").update(patch).eq("id",id); if(error)throw error; },
+  async updateProfileStations(id,station_ids){ const {error}=await sb.from("profiles").update({station_ids,station_id:station_ids[0]||null}).eq("id",id); if(error)throw error; },
   channel(name,table,cb){ return sb.channel(name).on("postgres_changes",{event:"*",schema:"public",table},cb).subscribe(); }
 };
 
 /* ========================= ÉTAT ========================= */
 const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const WD=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
-let me={id:"",email:"",role:"gerant",station_id:null};
+let me={id:"",email:"",role:"gerant",station_ids:[],station_id:null};
 let data={stations:[],clients:[],bons:[],profiles:[],tarifs:[]};
 let ctx={station_id:"",year:new Date().getFullYear(),month:new Date().getMonth()+1,day:new Date().getDate()};
 let expScope="month";
@@ -313,7 +335,7 @@ function currentPrice(produit,y,m,d){
     .sort((a,b)=>String(a.date_effet)<String(b.date_effet)?1:-1);
   return cand.length?Number(cand[0].prix):null;
 }
-function visibleStations(){ return me.role==="admin" ? data.stations : data.stations.filter(s=>s.id===me.station_id); }
+function visibleStations(){ if(me.role==="admin")return data.stations; return data.stations.filter(s=>(me.station_ids||[]).includes(s.id)); }
 function monthBons(){ return data.bons.filter(b=>b.station_id===ctx.station_id&&b.d_year===ctx.year&&b.d_month===ctx.month); }
 function dayBons(){ return monthBons().filter(b=>b.d_day===ctx.day).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
 
@@ -329,7 +351,25 @@ function fillCtx(){
   document.getElementById("ctxYear").value=ctx.year;
   document.getElementById("brandsub").textContent=ctx.station_id?("— "+stationName(ctx.station_id)):"—";
   document.getElementById("whoEmail").textContent=me.email;
-  document.getElementById("whoRole").innerHTML=`<span class="dot"></span>${me.role==="admin"?"administrateur":"gérant · "+(stationName(me.station_id)||"non assigné")}`;
+  const ROLE_LABELS={admin:"administrateur",gerant:"gérant",comptable:"comptable",agent_facturation:"agent facturation",chef_piste:"chef de piste"};
+  const stNms=me.station_ids.map(id=>stationName(id)).filter(Boolean);
+  document.getElementById("whoRole").innerHTML=`<span class="dot"></span>${ROLE_LABELS[me.role]||me.role}${me.role!=="admin"?" · "+(stNms.join(", ")||"non assigné"):""}`;
+}
+function applyRoleUI(){
+  // Show/hide tabs based on role
+  const tabCfg={
+    admin:{saisie:1,bon:1,suivi:1,export:1,ia:1,param:1},
+    gerant:{saisie:1,bon:1,suivi:1,export:1,ia:1,param:1},
+    comptable:{saisie:0,bon:0,suivi:1,export:1,ia:1,param:0},
+    agent_facturation:{saisie:1,bon:1,suivi:1,export:1,ia:1,param:0},
+    chef_piste:{saisie:1,bon:0,suivi:0,export:0,ia:0,param:0}
+  };
+  const cfg=tabCfg[me.role]||tabCfg.gerant;
+  document.querySelectorAll("nav.tabs button").forEach(b=>{b.style.display=cfg[b.dataset.tab]?"":"none";});
+  // Disable saisie add/edit for agent_facturation
+  const readOnly=me.role==="agent_facturation";
+  const addRowBtn=document.getElementById("addRow");
+  if(addRowBtn)addRowBtn.style.display=readOnly?"none":"";
 }
 
 /* ========================= SAISIE ========================= */
@@ -535,14 +575,38 @@ function renderParam(){
   document.querySelectorAll("[data-deltar]").forEach(b=>b.onclick=async()=>{try{await Store.delTarif(b.dataset.deltar);data.tarifs=await Store.listTarifs();renderParam();}catch(e){toast("Échec : "+e.message);}});
   document.getElementById("usersPanel").style.display=adm?"block":"none";
   if(adm){
-    const stOpts=(sel)=>`<option value="">(non assignée)</option>`+data.stations.map(s=>`<option value="${s.id}" ${s.id===sel?"selected":""}>${esc(s.name)}</option>`).join("");
-    document.getElementById("userBody").innerHTML=data.profiles.map(p=>`<tr>
+    const RLABS={admin:"Administrateur",gerant:"Gérant",comptable:"Comptable",agent_facturation:"Agent facturation",chef_piste:"Chef de piste"};
+    const stOpts=(ids=[])=>data.stations.map(s=>`<option value="${s.id}" ${(ids||[]).includes(s.id)?"selected":""}>${esc(s.name)}</option>`).join("");
+    document.getElementById("userBody").innerHTML=data.profiles.map(p=>{ const pids=p.station_ids||(p.station_id?[p.station_id]:[]); return `<tr>
       <td>${esc(p.email)}</td>
-      <td><select class="cell" data-urole="${p.id}" style="border:1px solid var(--line)"><option ${p.role==="gerant"?"selected":""}>gerant</option><option ${p.role==="admin"?"selected":""}>admin</option></select></td>
-      <td><select class="cell" data-ustation="${p.id}" style="border:1px solid var(--line)">${stOpts(p.station_id)}</select></td>
-      <td></td></tr>`).join("")||`<tr><td colspan="4" class="muted">Aucun utilisateur.</td></tr>`;
+      <td><select class="cell" data-urole="${p.id}" style="border:1px solid var(--line)">
+        ${Object.entries(RLABS).map(([v,l])=>`<option value="${v}" ${p.role===v?"selected":""}>${l}</option>`).join("")}
+      </select></td>
+      <td><select class="cell" multiple data-ustation="${p.id}" style="border:1px solid var(--line);width:100%;min-height:56px">${stOpts(pids)}</select></td>
+      <td></td></tr>`}).join("")||`<tr><td colspan="4" class="muted">Aucun utilisateur.</td></tr>`;
     document.querySelectorAll("[data-urole]").forEach(s=>s.onchange=async()=>{try{await Store.updateProfile(s.dataset.urole,{role:s.value});toast("Rôle mis à jour.");}catch(e){toast("Échec : "+e.message);}});
-    document.querySelectorAll("[data-ustation]").forEach(s=>s.onchange=async()=>{try{await Store.updateProfile(s.dataset.ustation,{station_id:s.value||null});toast("Station mise à jour.");}catch(e){toast("Échec : "+e.message);}});
+    document.querySelectorAll("[data-ustation]").forEach(s=>s.onchange=async()=>{
+      const ids=Array.from(s.selectedOptions).map(o=>o.value);
+      try{await Store.updateProfileStations(s.dataset.ustation,ids);toast("Stations mises à jour.");}catch(e){toast("Échec : "+e.message);}
+    });
+    // populate nuStations select
+    const ns=document.getElementById("nuStations"); if(ns)ns.innerHTML=data.stations.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
+    document.getElementById("btnCreateUser").onclick=async()=>{
+      const email=document.getElementById("nuEmail").value.trim();
+      const pass=document.getElementById("nuPass").value;
+      const role=document.getElementById("nuRole").value;
+      const station_ids=Array.from(document.getElementById("nuStations").selectedOptions).map(o=>o.value);
+      const res=document.getElementById("createUserRes");
+      if(!email||!pass){toast("E-mail et mot de passe requis.");return;}
+      res.textContent="Création en cours…";
+      try{
+        const r=await callFn("create-user",{email,password:pass,role,station_ids});
+        if(r.error)throw new Error(r.error);
+        data.profiles=await Store.listProfiles(); renderParam();
+        document.getElementById("nuEmail").value=""; document.getElementById("nuPass").value="";
+        res.textContent="✅ Compte créé."; toast("Utilisateur créé : "+email);
+      }catch(ex){res.textContent="⚠️ "+ex.message; toast("Échec : "+ex.message);}
+    };
   }
   ["newStation","addStation","bulkStations","importStations","newCpt","newName","newPrin","addClient","bulkClients","importClients","newTarProd","newTarPrix","newTarDate","addTarif"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delst]").forEach(b=>b.onclick=async()=>{try{await Store.delStation(b.dataset.delst);}catch(e){toast("Échec : "+e.message);}});
@@ -646,12 +710,12 @@ async function loadMe(user){
       sb.from("profiles").select("*").eq("id",user.id).maybeSingle(),
       new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),3000))
     ]);
-    if(p){ me.role=p.role; me.station_id=p.station_id; return; }
+    if(p){ me.role=p.role; me.station_ids=p.station_ids||(p.station_id?[p.station_id]:[]); me.station_id=me.station_ids[0]||null; return; }
     // profil pas encore créé (trigger lent) — 2 nouvelles tentatives
     for(let i=0;i<2;i++){
       await new Promise(r=>setTimeout(r,500));
       const {data:p2}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
-      if(p2){ me.role=p2.role; me.station_id=p2.station_id; return; }
+      if(p2){ me.role=p2.role; me.station_ids=p2.station_ids||(p2.station_id?[p2.station_id]:[]); me.station_id=me.station_ids[0]||null; return; }
     }
   }catch(e){ /* table absente ou timeout — on continue comme gérant */ }
   me.role="gerant"; me.station_id=null;
@@ -723,8 +787,8 @@ if(sb){
       showTab("saisie");
       // charger le profil et les données en arrière-plan
       await loadMe(session.user);
-      fillCtx(); // rafraîchir email + rôle dans la barre maintenant qu'on les a
-      document.getElementById("roleBanner").style.display=(me.role!=="admin"&&!me.station_id)?"block":"none";
+      fillCtx(); applyRoleUI(); // rafraîchir email + rôle dans la barre maintenant qu'on les a
+      document.getElementById("roleBanner").style.display=(me.role!=="admin"&&!me.station_ids.length)?"block":"none";
       document.getElementById("roleBanner").textContent="Votre compte n'a pas encore de station assignée. Demandez à un administrateur.";
       try{ await reloadAll(); startRealtime(); showTab("saisie"); }
       catch(e){ toast("Base non configurée : exécutez schema.sql dans Supabase SQL Editor."); }
