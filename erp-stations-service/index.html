@@ -333,11 +333,12 @@ async function onCell(e){
   let v=e.target.value;
   if(f==="qte"||f==="pu"){v=v.replace(",",".");v=v===""?null:parseFloat(v);if(v!==null&&isNaN(v))v=null;}
   const nb={...b,[f]:v};
-  if(f==="nom"&&v){const c=byName(v);if(c)nb.cpt=c.cpt;}
-  if(f==="cpt"&&v){const c=byCpt(v);if(c)nb.nom=c.nom;}
+  let lien=false;
+  if(f==="nom"&&v){const c=byName(v);if(c){nb.cpt=c.cpt;lien=true;}}
+  if(f==="cpt"&&v){const c=byCpt(v);if(c){nb.nom=c.nom;lien=true;}}
   // ne pas renvoyer created_at dans l'upsert
   const {created_at,...payload}=nb;
-  try{ await Store.saveBon(payload); await reloadBons(); if(activeTab()==="saisie")renderKpis(); }catch(err){ toast("Écriture refusée (droits)."); }
+  try{ await Store.saveBon(payload); await reloadBons(); if(activeTab()==="saisie"){ if(lien||f==="nom"||f==="cpt")renderSaisie(); else renderKpis(); } }catch(err){ toast("Écriture refusée (droits)."); }
 }
 async function addRow(){
   if(!ctx.station_id){toast("Aucune station sélectionnée. Allez dans Paramètres pour en créer une, puis choisissez-la en haut.");return;}
@@ -500,9 +501,9 @@ function renderParam(){
 }
 function refreshLists(){
   let dl=document.getElementById("clientsList");if(!dl){dl=document.createElement("datalist");dl.id="clientsList";document.body.appendChild(dl);}
-  dl.innerHTML=data.clients.map(c=>`<option value="${esc(c.nom)}">`).join("");
+  dl.innerHTML=data.clients.map(c=>`<option value="${esc(c.nom)}">${esc(c.cpt)}${c.prin?(" · "+esc(c.prin)):""}</option>`).join("");
   let dc=document.getElementById("comptesList");if(!dc){dc=document.createElement("datalist");dc.id="comptesList";document.body.appendChild(dc);}
-  dc.innerHTML=data.clients.map(c=>`<option value="${esc(c.cpt)}">`).join("");
+  dc.innerHTML=data.clients.map(c=>`<option value="${esc(c.cpt)}">${esc(c.nom)}</option>`).join("");
 }
 
 /* ========================= NAV ========================= */
