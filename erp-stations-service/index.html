@@ -582,15 +582,22 @@ function wireGate(){
     const err=document.getElementById("authErr");err.textContent="";
     if(!sb){err.textContent="Supabase non configuré.";return;}
     try{
+      document.getElementById("btnLogin").disabled=true;
+      document.getElementById("btnLogin").textContent=signupMode?"Création…":"Connexion…";
       if(signupMode){
         const {error}=await sb.auth.signUp({email,password:pass});
         if(error)throw error;
         toast("Compte créé. Si la confirmation e-mail est activée, validez l'e-mail puis connectez-vous.");
       }else{
-        const {error}=await sb.auth.signInWithPassword({email,password:pass});
+        const {data:sd,error}=await sb.auth.signInWithPassword({email,password:pass});
         if(error)throw error;
       }
-    }catch(ex){ err.textContent=traduire(ex.message||""); }
+    }catch(ex){
+      err.textContent=traduire(ex.message||String(ex));
+    }finally{
+      document.getElementById("btnLogin").disabled=false;
+      document.getElementById("btnLogin").textContent=signupMode?"Créer le compte":"Se connecter";
+    }
   };
   document.getElementById("authPass").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("btnLogin").click();});
 }
@@ -600,6 +607,8 @@ function traduire(msg){
   if(m.includes("already registered"))return"Cet e-mail a déjà un compte.";
   if(m.includes("password")&&m.includes("6"))return"Mot de passe trop court (6 caractères min).";
   if(m.includes("email not confirmed"))return"E-mail non confirmé : vérifiez votre boîte mail.";
+  if(m.includes("fetch")||m.includes("failed to fetch"))return"Impossible de joindre Supabase — vérifiez l'URL et la clé anon dans la config.";
+  if(m.includes("invalid api key")||m.includes("apikey"))return"Clé API invalide — mettez à jour SUPABASE_ANON_KEY dans la config.";
   return"Erreur : "+msg;
 }
 
