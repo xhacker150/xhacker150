@@ -152,11 +152,14 @@ create table if not exists public.audit_log (
 
 create or replace function public.audit()
 returns trigger language plpgsql security definer set search_path=public as $$
+declare rec jsonb; rid text;
 begin
+  -- certaines tables (ex. clients) n'ont pas de colonne "id" mais "cpt" :
+  -- on lit l'identifiant via le JSON pour éviter "record new has no field id".
+  rec := case when tg_op='DELETE' then to_jsonb(old) else to_jsonb(new) end;
+  rid := coalesce(rec->>'id', rec->>'cpt');
   insert into public.audit_log(actor,action,tbl,row_id,details)
-  values (auth.uid(), tg_op, tg_table_name,
-          coalesce(new.id::text, old.id::text),
-          case when tg_op='DELETE' then to_jsonb(old) else to_jsonb(new) end);
+  values (auth.uid(), tg_op, tg_table_name, rid, rec);
   return coalesce(new,old);
 end $$;
 
