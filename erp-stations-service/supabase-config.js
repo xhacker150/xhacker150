@@ -8,4 +8,4 @@
 // par les règles RLS de la base (schema.sql), pas par le secret de la clé.
 
 window.SUPABASE_URL = "https://ygbwhbmcquhcfhsxeyjz.supabase.co";
-window.SUPABASE_ANON_KEY = "VOTRE_CLE_ANON_PUBLIC";
+window.SUPABASE_ANON_KEY = "sb_publishable_2qZ9B9E04zsyrjl0nqXfTQ_61S2_vN6";
