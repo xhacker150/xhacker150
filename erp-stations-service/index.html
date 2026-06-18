@@ -614,12 +614,20 @@ function traduire(msg){
 
 async function loadMe(user){
   me.id=user.id; me.email=user.email||"";
-  // le profil est créé par trigger ; on le lit (petite attente si besoin)
-  for(let i=0;i<5;i++){
-    const {data:p}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
+  try{
+    // timeout de 3s max pour ne pas bloquer si la table profiles n'existe pas encore
+    const {data:p}=await Promise.race([
+      sb.from("profiles").select("*").eq("id",user.id).maybeSingle(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),3000))
+    ]);
     if(p){ me.role=p.role; me.station_id=p.station_id; return; }
-    await new Promise(r=>setTimeout(r,300));
-  }
+    // profil pas encore créé (trigger lent) — 2 nouvelles tentatives
+    for(let i=0;i<2;i++){
+      await new Promise(r=>setTimeout(r,500));
+      const {data:p2}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
+      if(p2){ me.role=p2.role; me.station_id=p2.station_id; return; }
+    }
+  }catch(e){ /* table absente ou timeout — on continue comme gérant */ }
   me.role="gerant"; me.station_id=null;
 }
 
@@ -656,14 +664,16 @@ if(sb){
   wireApp();
   sb.auth.onAuthStateChange(async (_evt,session)=>{
     if(session&&session.user){
-      await loadMe(session.user);
+      // afficher l'app IMMÉDIATEMENT pendant que les données chargent
       document.getElementById("gate").style.display="none";
       document.getElementById("app").style.display="block";
+      showTab("saisie");
+      // charger le profil et les données en arrière-plan
+      await loadMe(session.user);
       document.getElementById("roleBanner").style.display=(me.role!=="admin"&&!me.station_id)?"block":"none";
       document.getElementById("roleBanner").textContent="Votre compte n'a pas encore de station assignée. Demandez à un administrateur.";
-      await reloadAll();
-      startRealtime();
-      showTab("saisie");
+      try{ await reloadAll(); startRealtime(); showTab("saisie"); }
+      catch(e){ toast("Base non configurée : exécutez schema.sql dans Supabase SQL Editor."); }
     }else{
       stopRealtime();
       document.getElementById("app").style.display="none";
@@ -671,7 +681,8 @@ if(sb){
     }
   });
   // session existante au chargement
-  sb.auth.getSession();
+  const {data:{session:s0}}=await sb.auth.getSession();
+  if(!s0) document.getElementById("gate").style.display="flex";
 }
 </script>
 </body>
