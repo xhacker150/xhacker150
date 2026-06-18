@@ -1,0 +1,5 @@
+.env
+.env.local
+supabase-config.local.js
+node_modules/
+.supabase/
