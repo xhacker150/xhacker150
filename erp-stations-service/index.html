@@ -190,14 +190,36 @@
   <section class="view" id="view-param">
     <div class="panel"><h2>Stations</h2><div class="sub">Géré par l'administrateur.</div>
       <table><thead><tr><th>Nom de la station</th><th style="width:40px"></th></tr></thead><tbody id="stationBody"></tbody></table>
-      <div class="row" style="margin-top:10px"><input id="newStation" class="cell" style="max-width:280px;border:1px solid var(--line)" placeholder="Nom de la station"/><button class="btn small" id="addStation">Ajouter</button></div></div>
+      <div class="row" style="margin-top:10px">
+        <input id="newStation" class="cell" style="max-width:280px;border:1px solid var(--line)" placeholder="Nom de la station"/>
+        <button class="btn small" id="addStation">Ajouter</button>
+      </div>
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Importer plusieurs stations en une fois ▸</summary>
+        <div style="margin-top:8px">
+          <div class="sub">Un nom par ligne.</div>
+          <textarea id="bulkStations" style="width:100%;height:100px;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px" placeholder="Station Nord&#10;Station Sud&#10;Dépôt Central"></textarea>
+          <button class="btn small" id="importStations" style="margin-top:6px">Importer toutes</button>
+          <span id="importStationRes" class="help" style="margin-left:10px"></span>
+        </div>
+      </details></div>
+
     <div class="panel"><h2>Clients</h2><div class="sub">N° compte, nom, compte principal (compte collectif, ex. 411000).</div>
       <table><thead><tr><th>N° compte</th><th>Nom client</th><th>Compte principal</th><th style="width:40px"></th></tr></thead><tbody id="clientBody"></tbody></table>
       <div class="row" style="margin-top:10px">
         <input id="newCpt" class="cell" style="max-width:140px;border:1px solid var(--line)" placeholder="N° compte"/>
         <input id="newName" class="cell" style="max-width:240px;border:1px solid var(--line)" placeholder="Nom client"/>
         <input id="newPrin" class="cell" style="max-width:160px;border:1px solid var(--line)" placeholder="Compte principal"/>
-        <button class="btn small" id="addClient">Ajouter</button></div></div>
+        <button class="btn small" id="addClient">Ajouter</button>
+      </div>
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Importer plusieurs clients en une fois ▸</summary>
+        <div style="margin-top:8px">
+          <div class="sub">Format CSV : <code>N°compte;Nom client;Compte principal</code> — un client par ligne. Le compte principal est facultatif.</div>
+          <textarea id="bulkClients" style="width:100%;height:130px;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px" placeholder="411001;SOCOTRA SARL;411000&#10;411002;TOTAL SERVICES;411000&#10;411003;TRANSPORT SAHEL;"></textarea>
+          <button class="btn small" id="importClients" style="margin-top:6px">Importer tous</button>
+          <span id="importClientRes" class="help" style="margin-left:10px"></span>
+        </div>
+      </details></div>
+
     <div class="panel"><h2>Tarifs carburant</h2><div class="sub">Prix unitaire par produit (XOF). Le tarif le plus récent (selon sa date d'effet) s'applique automatiquement quand on choisit le produit à la saisie.</div>
       <table><thead><tr><th>Produit</th><th class="num">Prix unitaire</th><th>Date d'effet</th><th style="width:40px"></th></tr></thead><tbody id="tarifBody"></tbody></table>
       <div class="row" style="margin-top:10px">
@@ -205,6 +227,7 @@
         <input id="newTarPrix" class="cell num" style="max-width:130px;border:1px solid var(--line)" placeholder="Prix" inputmode="decimal"/>
         <input id="newTarDate" type="date" class="cell" style="max-width:170px;border:1px solid var(--line)"/>
         <button class="btn small" id="addTarif">Ajouter</button></div></div>
+
     <div class="panel" id="usersPanel" style="display:none"><h2>Utilisateurs & rôles</h2>
       <div class="sub">Attribuez le rôle et, pour un gérant, sa station. L'utilisateur doit déjà avoir créé son compte.</div>
       <table><thead><tr><th>E-mail</th><th>Rôle</th><th>Station assignée</th><th style="width:40px"></th></tr></thead><tbody id="userBody"></tbody></table>
@@ -518,7 +541,7 @@ function renderParam(){
     document.querySelectorAll("[data-urole]").forEach(s=>s.onchange=async()=>{try{await Store.updateProfile(s.dataset.urole,{role:s.value});toast("Rôle mis à jour.");}catch(e){toast("Échec : "+e.message);}});
     document.querySelectorAll("[data-ustation]").forEach(s=>s.onchange=async()=>{try{await Store.updateProfile(s.dataset.ustation,{station_id:s.value||null});toast("Station mise à jour.");}catch(e){toast("Échec : "+e.message);}});
   }
-  ["newStation","addStation","newCpt","newName","newPrin","addClient","newTarProd","newTarPrix","newTarDate","addTarif"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
+  ["newStation","addStation","bulkStations","importStations","newCpt","newName","newPrin","addClient","bulkClients","importClients","newTarProd","newTarPrix","newTarDate","addTarif"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delst]").forEach(b=>b.onclick=async()=>{try{await Store.delStation(b.dataset.delst);}catch(e){toast("Échec : "+e.message);}});
   document.querySelectorAll("[data-delcl]").forEach(b=>b.onclick=async()=>{try{await Store.delClient(b.dataset.delcl);}catch(e){toast("Échec : "+e.message);}});
   refreshLists();
@@ -645,6 +668,31 @@ function wireApp(){
   document.getElementById("btnCsv").onclick=downloadCsv;
   document.getElementById("btnCopy").onclick=()=>{navigator.clipboard.writeText(document.getElementById("sageOut").value);toast("Export copié.");};
   document.getElementById("addStation").onclick=async()=>{const v=document.getElementById("newStation").value.trim();if(!v)return;try{await Store.addStation(v);document.getElementById("newStation").value="";data.stations=await Store.listStations();refreshActive();renderParam();toast("Station ajoutée.");}catch(e){toast("Échec : "+e.message);}};
+  document.getElementById("importStations").onclick=async()=>{
+    const lines=document.getElementById("bulkStations").value.split("\n").map(l=>l.trim()).filter(Boolean);
+    if(!lines.length){toast("Aucune ligne à importer.");return;}
+    const res=document.getElementById("importStationRes");res.textContent="Import en cours…";
+    let ok=0,err=0;
+    for(const name of lines){try{await Store.addStation(name);ok++;}catch(e){err++;}}
+    data.stations=await Store.listStations();refreshActive();renderParam();
+    document.getElementById("bulkStations").value="";
+    res.textContent=`✅ ${ok} ajoutée(s)${err?` · ⚠️ ${err} erreur(s) (doublons exclus)`:""}`;
+  };
+  document.getElementById("importClients").onclick=async()=>{
+    const lines=document.getElementById("bulkClients").value.split("\n").map(l=>l.trim()).filter(Boolean);
+    if(!lines.length){toast("Aucune ligne à importer.");return;}
+    const res=document.getElementById("importClientRes");res.textContent="Import en cours…";
+    let ok=0,err=0,errs=[];
+    for(const line of lines){
+      const parts=line.split(";").map(p=>p.trim());
+      const cpt=parts[0],nom=parts[1]||"",prin=parts[2]||"";
+      if(!cpt){err++;continue;}
+      try{await Store.upsertClient({cpt,nom,prin});ok++;}catch(e){err++;errs.push(cpt);}
+    }
+    data.clients=await Store.listClients();renderParam();refreshLists();
+    document.getElementById("bulkClients").value="";
+    res.textContent=`✅ ${ok} importé(s)${err?` · ⚠️ ${err} erreur(s)${errs.length?" ("+errs.join(", ")+")":""}` :""}`;
+  };
   document.getElementById("addClient").onclick=async()=>{const cpt=document.getElementById("newCpt").value.trim(),nom=document.getElementById("newName").value.trim(),prin=document.getElementById("newPrin").value.trim();if(!cpt){toast("Le n° de compte est requis (clé).");return;}try{await Store.upsertClient({cpt,nom,prin});["newCpt","newName","newPrin"].forEach(id=>document.getElementById(id).value="");data.clients=await Store.listClients();renderParam();toast("Client enregistré.");}catch(e){toast("Échec : "+e.message);}};
   document.getElementById("addTarif").onclick=async()=>{
     const produit=document.getElementById("newTarProd").value;
