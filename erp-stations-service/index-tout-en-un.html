@@ -198,6 +198,13 @@
         <input id="newName" class="cell" style="max-width:240px;border:1px solid var(--line)" placeholder="Nom client"/>
         <input id="newPrin" class="cell" style="max-width:160px;border:1px solid var(--line)" placeholder="Compte principal"/>
         <button class="btn small" id="addClient">Ajouter</button></div></div>
+    <div class="panel"><h2>Tarifs carburant</h2><div class="sub">Prix unitaire par produit (XOF). Le tarif le plus récent (selon sa date d'effet) s'applique automatiquement quand on choisit le produit à la saisie.</div>
+      <table><thead><tr><th>Produit</th><th class="num">Prix unitaire</th><th>Date d'effet</th><th style="width:40px"></th></tr></thead><tbody id="tarifBody"></tbody></table>
+      <div class="row" style="margin-top:10px">
+        <select id="newTarProd" class="cell" style="max-width:140px;border:1px solid var(--line)"><option>Super</option><option>Gasoil</option></select>
+        <input id="newTarPrix" class="cell num" style="max-width:130px;border:1px solid var(--line)" placeholder="Prix" inputmode="decimal"/>
+        <input id="newTarDate" type="date" class="cell" style="max-width:170px;border:1px solid var(--line)"/>
+        <button class="btn small" id="addTarif">Ajouter</button></div></div>
     <div class="panel" id="usersPanel" style="display:none"><h2>Utilisateurs & rôles</h2>
       <div class="sub">Attribuez le rôle et, pour un gérant, sa station. L'utilisateur doit déjà avoir créé son compte.</div>
       <table><thead><tr><th>E-mail</th><th>Rôle</th><th>Station assignée</th><th style="width:40px"></th></tr></thead><tbody id="userBody"></tbody></table>
@@ -243,6 +250,9 @@ const Store = {
   async delStation(id){ const {error}=await sb.from("stations").delete().eq("id",id); if(error)throw error; },
   async upsertClient(c){ const {error}=await sb.from("clients").upsert(c); if(error)throw error; },
   async delClient(cpt){ const {error}=await sb.from("clients").delete().eq("cpt",cpt); if(error)throw error; },
+  async listTarifs(){ const {data,error}=await sb.from("tarifs").select("*").order("date_effet",{ascending:false}); if(error)throw error; return data; },
+  async upsertTarif(t){ const {error}=await sb.from("tarifs").upsert(t,{onConflict:"produit,date_effet"}); if(error)throw error; },
+  async delTarif(id){ const {error}=await sb.from("tarifs").delete().eq("id",id); if(error)throw error; },
   async saveBon(b){ const {error}=await sb.from("bons").upsert(b); if(error)throw error; },
   async delBon(id){ const {error}=await sb.from("bons").delete().eq("id",id); if(error)throw error; },
   async updateProfile(id,patch){ const {error}=await sb.from("profiles").update(patch).eq("id",id); if(error)throw error; },
@@ -253,7 +263,7 @@ const Store = {
 const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const WD=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 let me={id:"",email:"",role:"gerant",station_id:null};
-let data={stations:[],clients:[],bons:[],profiles:[]};
+let data={stations:[],clients:[],bons:[],profiles:[],tarifs:[]};
 let ctx={station_id:"",year:new Date().getFullYear(),month:new Date().getMonth()+1,day:new Date().getDate()};
 let expScope="month";
 const uuid=()=> (crypto.randomUUID? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2)));
@@ -273,6 +283,13 @@ function resolveClient(nom,cpt){
   if(nom){const c=byName(nom);return{nom,cpt:c?c.cpt:(cpt||""),prin:c?c.prin:""};}
   if(cpt){const c=byCpt(cpt);return{nom:c?c.nom:"(compte inconnu)",cpt,prin:c?c.prin:""};}
   return{nom:"",cpt:"",prin:""};
+}
+function currentPrice(produit,y,m,d){
+  if(!produit)return null;
+  const dt=`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const cand=(data.tarifs||[]).filter(t=>t.produit===produit && String(t.date_effet)<=dt)
+    .sort((a,b)=>String(a.date_effet)<String(b.date_effet)?1:-1);
+  return cand.length?Number(cand[0].prix):null;
 }
 function visibleStations(){ return me.role==="admin" ? data.stations : data.stations.filter(s=>s.id===me.station_id); }
 function monthBons(){ return data.bons.filter(b=>b.station_id===ctx.station_id&&b.d_year===ctx.year&&b.d_month===ctx.month); }
@@ -340,9 +357,10 @@ async function onCell(e){
   let lien=false;
   if(f==="nom"&&v){const c=byName(v);if(c){nb.cpt=c.cpt;lien=true;}}
   if(f==="cpt"&&v){const c=byCpt(v);if(c){nb.nom=c.nom;lien=true;}}
+  if(f==="produit"&&v){const p=currentPrice(v,nb.d_year,nb.d_month,nb.d_day);if(p!=null){nb.pu=p;lien=true;}else{toast("Aucun tarif pour "+v+" : ajoutez-le dans Paramètres.");}}
   // ne pas renvoyer created_at dans l'upsert
   const {created_at,...payload}=nb;
-  try{ await Store.saveBon(payload); await reloadBons(); if(activeTab()==="saisie"){ if(lien||f==="nom"||f==="cpt")renderSaisie(); else renderKpis(); } }catch(err){ toast("Écriture refusée (droits)."); }
+  try{ await Store.saveBon(payload); await reloadBons(); if(activeTab()==="saisie"){ if(lien||f==="nom"||f==="cpt"||f==="produit")renderSaisie(); else renderKpis(); } }catch(err){ toast("Écriture refusée (droits)."); }
 }
 async function addRow(){
   if(!ctx.station_id){toast("Aucune station sélectionnée. Allez dans Paramètres pour en créer une, puis choisissez-la en haut.");return;}
@@ -487,6 +505,12 @@ function renderParam(){
     `<tr><td class="auto">${esc(c.cpt)}</td><td>${esc(c.nom)}</td><td class="auto">${esc(c.prin)}</td>
      <td>${adm?`<button class="btn ghost small" data-delcl="${esc(c.cpt)}">✕</button>`:""}</td></tr>`).join("")
     ||`<tr><td colspan="4" class="muted">Aucun client.</td></tr>`;
+  document.getElementById("tarifBody").innerHTML=(data.tarifs||[]).map(t=>
+    `<tr><td>${esc(t.produit)}</td><td class="num">${fmt(t.prix)}</td><td class="auto">${esc(t.date_effet)}</td>
+     <td>${adm?`<button class="btn ghost small" data-deltar="${t.id}">✕</button>`:""}</td></tr>`).join("")
+    ||`<tr><td colspan="4" class="muted">Aucun tarif. Ajoutez le prix du Super et du Gasoil.</td></tr>`;
+  const td=document.getElementById("newTarDate"); if(td&&!td.value)td.value=new Date().toISOString().slice(0,10);
+  document.querySelectorAll("[data-deltar]").forEach(b=>b.onclick=async()=>{try{await Store.delTarif(b.dataset.deltar);data.tarifs=await Store.listTarifs();renderParam();}catch(e){toast("Échec : "+e.message);}});
   document.getElementById("usersPanel").style.display=adm?"block":"none";
   if(adm){
     const stOpts=(sel)=>`<option value="">(non assignée)</option>`+data.stations.map(s=>`<option value="${s.id}" ${s.id===sel?"selected":""}>${esc(s.name)}</option>`).join("");
@@ -498,7 +522,7 @@ function renderParam(){
     document.querySelectorAll("[data-urole]").forEach(s=>s.onchange=async()=>{try{await Store.updateProfile(s.dataset.urole,{role:s.value});toast("Rôle mis à jour.");}catch(e){toast("Échec : "+e.message);}});
     document.querySelectorAll("[data-ustation]").forEach(s=>s.onchange=async()=>{try{await Store.updateProfile(s.dataset.ustation,{station_id:s.value||null});toast("Station mise à jour.");}catch(e){toast("Échec : "+e.message);}});
   }
-  ["newStation","addStation","newCpt","newName","newPrin","addClient"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
+  ["newStation","addStation","newCpt","newName","newPrin","addClient","newTarProd","newTarPrix","newTarDate","addTarif"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delst]").forEach(b=>b.onclick=async()=>{try{await Store.delStation(b.dataset.delst);}catch(e){toast("Échec : "+e.message);}});
   document.querySelectorAll("[data-delcl]").forEach(b=>b.onclick=async()=>{try{await Store.delClient(b.dataset.delcl);}catch(e){toast("Échec : "+e.message);}});
   refreshLists();
@@ -529,8 +553,8 @@ async function reloadBons(){
 }
 async function reloadAll(){
   try{
-    const [st,cl]=await Promise.all([Store.listStations(),Store.listClients()]);
-    data.stations=st; data.clients=cl;
+    const [st,cl,tf]=await Promise.all([Store.listStations(),Store.listClients(),Store.listTarifs()]);
+    data.stations=st; data.clients=cl; data.tarifs=tf;
     if(me.role==="admin"){ try{ data.profiles=await Store.listProfiles(); }catch(e){ data.profiles=[]; } }
   }catch(e){ /* RLS peut limiter : on garde ce qu'on a */ }
   fillCtx();
@@ -543,6 +567,7 @@ function startRealtime(){
   channels.push(Store.channel("rt-bons","bons",onChange));
   channels.push(Store.channel("rt-stations","stations",async()=>{data.stations=await Store.listStations();refreshActive();}));
   channels.push(Store.channel("rt-clients","clients",async()=>{data.clients=await Store.listClients();refreshLists();if(activeTab()==="param")renderParam();}));
+  channels.push(Store.channel("rt-tarifs","tarifs",async()=>{try{data.tarifs=await Store.listTarifs();}catch(e){}if(activeTab()==="param")renderParam();}));
 }
 function stopRealtime(){channels.forEach(c=>{try{sb.removeChannel(c);}catch(e){}});channels=[];}
 
@@ -608,6 +633,13 @@ function wireApp(){
   document.getElementById("btnCopy").onclick=()=>{navigator.clipboard.writeText(document.getElementById("sageOut").value);toast("Export copié.");};
   document.getElementById("addStation").onclick=async()=>{const v=document.getElementById("newStation").value.trim();if(!v)return;try{await Store.addStation(v);document.getElementById("newStation").value="";data.stations=await Store.listStations();refreshActive();renderParam();toast("Station ajoutée.");}catch(e){toast("Échec : "+e.message);}};
   document.getElementById("addClient").onclick=async()=>{const cpt=document.getElementById("newCpt").value.trim(),nom=document.getElementById("newName").value.trim(),prin=document.getElementById("newPrin").value.trim();if(!cpt){toast("Le n° de compte est requis (clé).");return;}try{await Store.upsertClient({cpt,nom,prin});["newCpt","newName","newPrin"].forEach(id=>document.getElementById(id).value="");data.clients=await Store.listClients();renderParam();toast("Client enregistré.");}catch(e){toast("Échec : "+e.message);}};
+  document.getElementById("addTarif").onclick=async()=>{
+    const produit=document.getElementById("newTarProd").value;
+    let prix=parseFloat((document.getElementById("newTarPrix").value||"").replace(",","."));
+    const date_effet=document.getElementById("newTarDate").value||new Date().toISOString().slice(0,10);
+    if(!produit||isNaN(prix)){toast("Produit et prix requis.");return;}
+    try{await Store.upsertTarif({produit,prix,date_effet});document.getElementById("newTarPrix").value="";data.tarifs=await Store.listTarifs();renderParam();toast("Tarif enregistré.");}catch(e){toast("Échec : "+e.message);}
+  };
   document.getElementById("btnBackup").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="sauvegarde_facturation.json";a.click();};
   document.getElementById("btnAnalyser").onclick=analyser;
   document.getElementById("btnLogout").onclick=async()=>{ await sb.auth.signOut(); };
