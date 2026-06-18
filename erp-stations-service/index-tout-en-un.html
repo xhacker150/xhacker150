@@ -329,7 +329,7 @@ function rowHtml(b,n){
 }
 function bindSaisie(){
   document.querySelectorAll('#saisieBody input.cell,#saisieBody select.cell').forEach(el=>el.addEventListener("change",onCell));
-  document.querySelectorAll('#saisieBody [data-del]').forEach(b=>b.addEventListener("click",async()=>{try{await Store.delBon(b.dataset.del);}catch(e){toast("Suppression refusée.");}}));
+  document.querySelectorAll('#saisieBody [data-del]').forEach(b=>b.addEventListener("click",async()=>{try{await Store.delBon(b.dataset.del);await reloadBons();renderSaisie();}catch(e){toast("Suppression refusée.");}}));
 }
 async function onCell(e){
   const id=e.target.dataset.id,f=e.target.dataset.f;
@@ -341,14 +341,14 @@ async function onCell(e){
   if(f==="cpt"&&v){const c=byCpt(v);if(c)nb.nom=c.nom;}
   // ne pas renvoyer created_at dans l'upsert
   const {created_at,...payload}=nb;
-  try{ await Store.saveBon(payload); }catch(err){ toast("Écriture refusée (droits)."); }
+  try{ await Store.saveBon(payload); await reloadBons(); if(activeTab()==="saisie")renderKpis(); }catch(err){ toast("Écriture refusée (droits)."); }
 }
 async function addRow(){
-  if(!ctx.station_id){toast("Aucune station. Voir Paramètres.");return;}
+  if(!ctx.station_id){toast("Aucune station sélectionnée. Allez dans Paramètres pour en créer une, puis choisissez-la en haut.");return;}
   const row={id:uuid(),station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,
     nom:"",cpt:"",immat:"",bl:"",produit:"",qte:null,pu:null,created_by:me.id};
-  try{ await Store.saveBon(row); }
-  catch(err){ toast("Création refusée : vérifiez votre station assignée."); }
+  try{ await Store.saveBon(row); await reloadBons(); renderSaisie(); }
+  catch(err){ toast("Création refusée : "+(err&&err.message?err.message:"vérifiez votre station assignée.")); }
 }
 
 /* ========================= BON ========================= */

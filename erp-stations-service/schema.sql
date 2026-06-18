@@ -425,5 +425,19 @@ drop policy if exists au_read on public.audit_log;
 create policy au_read on public.audit_log for select using (public.is_compta());
 
 -- =====================================================================
+--  10. REALTIME — publier les changements pour la synchro multi-postes
+--  (sans ça, l'app n'est pas notifiée des insertions/modifications)
+-- =====================================================================
+do $$ declare t text;
+begin
+  foreach t in array array['bons','fiches','stations','clients','alertes'] loop
+    begin
+      execute format('alter publication supabase_realtime add table public.%I;', t);
+    exception when duplicate_object then null;  -- déjà publiée
+    end;
+  end loop;
+end $$;
+
+-- =====================================================================
 --  FIN. Étapes : Edge Functions (detect-fraude, prevoir) + app. Voir GUIDE.
 -- =====================================================================
