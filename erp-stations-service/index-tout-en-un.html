@@ -213,7 +213,7 @@
       </div>
       <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Importer plusieurs clients en une fois ▸</summary>
         <div style="margin-top:8px">
-          <div class="sub">Format CSV : <code>N°compte;Nom client;Compte principal</code> — un client par ligne. Le compte principal est facultatif.</div>
+          <div class="sub">Un client par ligne. Colonnes : <code>N°compte · Nom client · Compte principal</code> (le dernier est facultatif). Séparateur accepté : <b>tabulation</b> (copier-coller depuis Excel), <b>point-virgule</b> ou <b>virgule</b>.</div>
           <textarea id="bulkClients" style="width:100%;height:130px;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px" placeholder="411001;SOCOTRA SARL;411000&#10;411002;TOTAL SERVICES;411000&#10;411003;TRANSPORT SAHEL;"></textarea>
           <button class="btn small" id="importClients" style="margin-top:6px">Importer tous</button>
           <span id="importClientRes" class="help" style="margin-left:10px"></span>
@@ -687,7 +687,9 @@ function wireApp(){
     const res=document.getElementById("importClientRes");res.textContent="Import en cours…";
     let ok=0,err=0,errs=[];
     for(const line of lines){
-      const parts=line.split(";").map(p=>p.trim());
+      // séparateur souple : tabulation (copier-coller Excel), point-virgule ou virgule
+      const sep = line.includes("\t") ? "\t" : (line.includes(";") ? ";" : ",");
+      const parts=line.split(sep).map(p=>p.trim());
       const cpt=parts[0],nom=parts[1]||"",prin=parts[2]||"";
       if(!cpt){err++;continue;}
       try{await Store.upsertClient({cpt,nom,prin});ok++;}catch(e){err++;errs.push(cpt);}
