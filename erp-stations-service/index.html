@@ -184,8 +184,9 @@
   </section>
   <section class="view" id="view-suivi">
     <div class="panel"><div class="row"><h2 class="grow">Suivi clients du mois</h2><button class="btn ghost small noprint" id="btnPrintSuivi">Imprimer tous les relevés</button><span class="help" id="suiviCtx"></span></div>
-      <div class="sub">Cumuls sur le mois sélectionné. Cliquez « Relevé » pour imprimer la fiche détaillée par client et par station.</div>
-      <table><thead><tr><th>Client</th><th>N° compte</th><th>Compte principal</th><th class="num">Nb bons</th>
+      <div class="sub">Filtrez par station, puis cliquez « Relevé » pour imprimer la fiche détaillée par client.</div>
+      <div class="row noprint" style="margin-bottom:10px;gap:6px;flex-wrap:wrap" id="suiviStFilter"></div>
+      <table><thead><tr><th>Client</th><th>N° compte</th><th>Compte principal</th><th>Station</th><th class="num">Nb bons</th>
         <th class="num">Qté Super</th><th class="num">Montant Super</th><th class="num">Qté Gasoil</th><th class="num">Montant Gasoil</th><th class="num">Total facturé</th><th class="noprint" style="width:74px"></th>
       </tr></thead><tbody id="suiviBody"></tbody><tfoot id="suiviFoot"></tfoot></table></div>
   </section>
@@ -341,6 +342,11 @@ const Store = {
   async listBons(scope){ // scope: {station_id, year, month}
     let q=sb.from("bons").select("*").eq("station_id",scope.station_id).eq("d_year",scope.year).eq("d_month",scope.month);
     const {data,error}=await q; if(error)throw error; return data;
+  },
+  async listBonsMulti(stationIds,year,month){
+    if(!stationIds.length)return[];
+    const {data,error}=await sb.from("bons").select("*").in("station_id",stationIds).eq("d_year",year).eq("d_month",month);
+    if(error)throw error; return data;
   },
   async listFiches(scope){ const {data,error}=await sb.from("fiches").select("*").eq("station_id",scope.station_id).eq("d_year",scope.year).eq("d_month",scope.month); if(error)throw error; return data; },
   async upsertFiche(f){ const {error}=await sb.from("fiches").upsert(f,{onConflict:"station_id,d_year,d_month,d_day"}); if(error)throw error; },
@@ -768,50 +774,84 @@ function printCloture(){
 }
 
 /* ========================= SUIVI ========================= */
-function buildSuiviMap(){
-  const list=monthBons(); const m={};
+let suiviSel=new Set(); // IDs des stations sélectionnées ; vide = toutes
+let suiviBons=[];
+async function reloadSuiviBons(){
+  const vs=visibleStations();
+  const sids=(suiviSel.size?vs.filter(s=>suiviSel.has(s.id)):vs).map(s=>s.id);
+  if(!sids.length){suiviBons=[];return;}
+  try{suiviBons=await Store.listBonsMulti(sids,ctx.year,ctx.month);}catch(e){suiviBons=[];}
+}
+function buildSuiviMap(list){
+  const m={};
   list.forEach(b=>{const r=resolveClient(b.nom,b.cpt);const k=r.cpt||r.nom||"(?)";
-    if(!m[k])m[k]={nom:r.nom,cpt:r.cpt,prin:r.prin,nb:0,qS:0,mS:0,qG:0,mG:0,bons:[]};
+    if(!m[k])m[k]={nom:r.nom,cpt:r.cpt,prin:r.prin,nb:0,qS:0,mS:0,qG:0,mG:0,lastDay:0,stations:new Set(),bons:[]};
     const o=m[k];const mt=(+b.qte||0)*(+b.pu||0);if(b.bl)o.nb++;
     if(b.produit==="Super"){o.qS+=+b.qte||0;o.mS+=mt;}else if(b.produit==="Gasoil"){o.qG+=+b.qte||0;o.mG+=mt;}
-    o.bons.push(b);});
+    if(b.d_day>o.lastDay)o.lastDay=b.d_day;
+    o.stations.add(b.station_id);o.bons.push(b);});
   return m;
 }
-function renderSuivi(){
-  document.getElementById("suiviCtx").textContent=`${stationName(ctx.station_id)||"—"} · ${MONTHS[ctx.month-1]} ${ctx.year}`;
-  const m=buildSuiviMap();
-  const rows=Object.entries(m).sort(([,a],[,b])=>(b.mS+b.mG)-(a.mS+a.mG));
+function renderSuiviFilter(){
+  const vs=visibleStations(); const f=document.getElementById("suiviStFilter"); if(!f)return;
+  if(vs.length<2){f.innerHTML="";return;}
+  const allOn=!suiviSel.size;
+  f.innerHTML=`<button class="btn small ${allOn?"":"ghost"}" onclick="setSuiviSel(null)">Toutes les stations</button>`
+    +vs.map(s=>`<button class="btn small ${suiviSel.has(s.id)?"":"ghost"}" onclick="setSuiviSel('${s.id}')">${esc(s.name)}</button>`).join("");
+}
+async function setSuiviSel(sid){
+  if(!sid){suiviSel.clear();}else if(suiviSel.has(sid)){suiviSel.delete(sid);}else{suiviSel.add(sid);}
+  renderSuiviFilter();await reloadSuiviBons();_renderSuiviTable();
+}
+function _renderSuiviTable(){
+  const vs=visibleStations();
+  const selNames=suiviSel.size?vs.filter(s=>suiviSel.has(s.id)).map(s=>s.name).join(", "):"toutes les stations";
+  document.getElementById("suiviCtx").textContent=`${MONTHS[ctx.month-1]} ${ctx.year} · ${selNames}`;
+  const m=buildSuiviMap(suiviBons);
+  const rows=Object.entries(m).sort(([,a],[,b])=>{
+    if(b.lastDay!==a.lastDay)return b.lastDay-a.lastDay;
+    const sa=[...a.stations].map(id=>stationName(id)||"").sort().join(",");
+    const sb2=[...b.stations].map(id=>stationName(id)||"").sort().join(",");
+    return sa.localeCompare(sb2);
+  });
   const body=document.getElementById("suiviBody");
-  if(!rows.length){body.innerHTML=`<tr><td colspan="10"><div class="empty">Aucune donnée pour ce mois.</div></td></tr>`;document.getElementById("suiviFoot").innerHTML="";return;}
-  body.innerHTML=rows.map(([k,o])=>`<tr><td>${esc(o.nom)}</td><td class="auto">${esc(o.cpt)}</td><td class="auto">${esc(o.prin)}</td>
-    <td class="num">${o.nb}</td><td class="num">${fmt(o.qS)}</td><td class="num">${fmt0(o.mS)}</td>
-    <td class="num">${fmt(o.qG)}</td><td class="num">${fmt0(o.mG)}</td><td class="num"><strong>${fmt0(o.mS+o.mG)}</strong></td>
-    <td class="noprint"><button class="btn ghost small" data-releve="${esc(k)}">Relevé</button></td></tr>`).join("");
+  if(!rows.length){body.innerHTML=`<tr><td colspan="11"><div class="empty">Aucune donnée pour ce mois.</div></td></tr>`;document.getElementById("suiviFoot").innerHTML="";return;}
+  body.innerHTML=rows.map(([k,o])=>{const stLbl=[...o.stations].map(id=>stationName(id)||"").sort().join(", ");
+    return `<tr><td>${esc(o.nom)}</td><td class="auto">${esc(o.cpt)}</td><td class="auto">${esc(o.prin)}</td>
+      <td class="auto" style="font-size:12px">${esc(stLbl)}</td>
+      <td class="num">${o.nb}</td><td class="num">${fmt(o.qS)}</td><td class="num">${fmt0(o.mS)}</td>
+      <td class="num">${fmt(o.qG)}</td><td class="num">${fmt0(o.mG)}</td><td class="num"><strong>${fmt0(o.mS+o.mG)}</strong></td>
+      <td class="noprint"><button class="btn ghost small" data-releve="${esc(k)}">Relevé</button></td></tr>`;}).join("");
   document.querySelectorAll("[data-releve]").forEach(b=>b.onclick=()=>printReleve(b.dataset.releve));
   const Tc=rows.reduce((a,[,o])=>({nb:a.nb+o.nb,qS:a.qS+o.qS,mS:a.mS+o.mS,qG:a.qG+o.qG,mG:a.mG+o.mG}),{nb:0,qS:0,mS:0,qG:0,mG:0});
-  document.getElementById("suiviFoot").innerHTML=`<tr><td colspan="3"><strong>TOTAL</strong></td><td class="num"><strong>${Tc.nb}</strong></td>
+  document.getElementById("suiviFoot").innerHTML=`<tr><td colspan="4"><strong>TOTAL</strong></td><td class="num"><strong>${Tc.nb}</strong></td>
     <td class="num"><strong>${fmt(Tc.qS)}</strong></td><td class="num"><strong>${fmt0(Tc.mS)}</strong></td>
     <td class="num"><strong>${fmt(Tc.qG)}</strong></td><td class="num"><strong>${fmt0(Tc.mG)}</strong></td>
     <td class="num"><strong>${fmt0(Tc.mS+Tc.mG)}</strong></td><td class="noprint"></td></tr>`;
 }
+async function renderSuivi(){
+  renderSuiviFilter();await reloadSuiviBons();_renderSuiviTable();
+}
 
 /* ========================= RELEVÉ PAR CLIENT ========================= */
 function releveClientHtml(o,bonsClient){
-  const station=esc(stationName(ctx.station_id)||"—");
+  const stationsLabel=[...o.stations].map(id=>stationName(id)||"?").sort().join(", ")||stationName(ctx.station_id)||"—";
   const period=`${MONTHS[ctx.month-1]} ${ctx.year}`;
-  const lignes=bonsClient.slice().sort((a,b)=>a.d_day-b.d_day).map((b,i)=>{const mt=(+b.qte||0)*(+b.pu||0);
+  const lignes=bonsClient.slice().sort((a,b)=>a.d_day-b.d_day||(stationName(a.station_id)||"").localeCompare(stationName(b.station_id)||""))
+    .map((b)=>{const mt=(+b.qte||0)*(+b.pu||0);
     return `<tr><td class="num">${String(b.d_day).padStart(2,"0")}/${String(b.d_month).padStart(2,"0")}/${b.d_year}</td>
+      <td>${esc(stationName(b.station_id)||"—")}</td>
       <td>${esc(b.bl)}</td><td>${esc(b.immat)}</td><td>${esc(b.produit)}</td>
       <td class="num">${fmt(b.qte)}</td><td class="num">${fmt(b.pu)}</td><td class="num">${fmt0(mt)}</td></tr>`;}).join("");
   return `<div class="bon" style="page-break-after:always">
-    <div class="head"><div><h3>RELEVÉ CLIENT</h3><div>${station}</div></div>
+    <div class="head"><div><h3>RELEVÉ CLIENT</h3><div>${esc(stationsLabel)}</div></div>
       <div class="meta">${esc(period)}</div></div>
     <div style="margin-bottom:12px;font-size:13px"><strong>${esc(o.nom||"(sans nom)")}</strong>
       ${o.cpt?` · N° compte : ${esc(o.cpt)}`:""}${o.prin?` · Compte principal : ${esc(o.prin)}`:""}</div>
-    <table><thead><tr><th>Date</th><th>N° bon</th><th>Immat.</th><th>Produit</th>
+    <table><thead><tr><th>Date</th><th>Station</th><th>N° bon</th><th>Immat.</th><th>Produit</th>
       <th class="num">Qté (L)</th><th class="num">PU (XOF)</th><th class="num">Montant</th></tr></thead>
-    <tbody>${lignes||`<tr><td colspan="7" style="text-align:center;color:#999">Aucun bon à crédit ce mois.</td></tr>`}</tbody>
-    <tfoot><tr class="totrow"><td colspan="3">TOTAL</td><td></td>
+    <tbody>${lignes||`<tr><td colspan="8" style="text-align:center;color:#999">Aucun bon à crédit ce mois.</td></tr>`}</tbody>
+    <tfoot><tr class="totrow"><td colspan="4">TOTAL</td><td></td>
       <td class="num">${fmt(o.qS+o.qG)}</td><td></td><td class="num">${fmt0(o.mS+o.mG)} XOF</td></tr></tfoot></table>
     <div class="grid2" style="margin-top:14px">
       <div class="box"><h4>Super</h4><table><tbody>
@@ -823,12 +863,12 @@ function releveClientHtml(o,bonsClient){
     <div class="sign"><div>Visa du gérant</div><div>Visa client (${esc(o.nom||"—")})</div></div></div>`;
 }
 function printReleve(cptKey){
-  const m=buildSuiviMap(); const o=m[cptKey]; if(!o){toast("Client introuvable.");return;}
+  const m=buildSuiviMap(suiviBons); const o=m[cptKey]; if(!o){toast("Client introuvable.");return;}
   document.getElementById("print-area").innerHTML=releveClientHtml(o,o.bons);
   window.print();
 }
 function printReleveTous(){
-  const m=buildSuiviMap();
+  const m=buildSuiviMap(suiviBons);
   const html=Object.entries(m).sort(([,a],[,b])=>(b.mS+b.mG)-(a.mS+a.mG))
     .map(([,o])=>releveClientHtml(o,o.bons)).join("");
   document.getElementById("print-area").innerHTML=html||"<p>Aucune donnée.</p>";
