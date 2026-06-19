@@ -198,20 +198,39 @@
     <div id="bonPreview"></div>
   </section>
   <section class="view" id="view-suivi">
-    <div class="panel"><div class="row"><h2 class="grow">Suivi clients du mois</h2><span class="help" id="suiviCtx"></span></div>
-      <div class="sub">Cumuls sur le mois sélectionné.</div>
+    <div class="panel"><div class="row"><h2 class="grow">Suivi clients du mois</h2><button class="btn ghost small noprint" id="btnPrintSuivi">Imprimer tous les relevés</button><span class="help" id="suiviCtx"></span></div>
+      <div class="sub">Cumuls sur le mois sélectionné. Cliquez « Relevé » pour imprimer la fiche détaillée par client et par station.</div>
       <table><thead><tr><th>Client</th><th>N° compte</th><th>Compte principal</th><th class="num">Nb bons</th>
-        <th class="num">Qté Super</th><th class="num">Montant Super</th><th class="num">Qté Gasoil</th><th class="num">Montant Gasoil</th><th class="num">Total facturé</th>
+        <th class="num">Qté Super</th><th class="num">Montant Super</th><th class="num">Qté Gasoil</th><th class="num">Montant Gasoil</th><th class="num">Total facturé</th><th class="noprint" style="width:74px"></th>
       </tr></thead><tbody id="suiviBody"></tbody><tfoot id="suiviFoot"></tfoot></table></div>
   </section>
   <section class="view" id="view-export">
-    <div class="panel"><h2>Export Sage 100 — Gestion Commerciale</h2>
+    <div class="panel"><h2>Export CSV — Sage 100 Gestion Commerciale</h2>
       <div class="sub">Station, Date, N° Compte, Compte Principal, Client, Description, Produit, Quantité, PU, Montant.</div>
       <div class="row" style="margin-bottom:12px">
         <div class="pill-toggle" id="expScope"><button data-scope="month" class="on">Mois entier</button><button data-scope="day">Jour affiché</button></div>
         <button class="btn" id="btnCsv">Télécharger CSV</button><button class="btn ghost" id="btnCopy">Copier</button>
         <span class="help" id="expCount"></span></div>
       <textarea id="sageOut" readonly></textarea></div>
+    <div class="panel"><h2>API REST — Intégration Sage 100 GESCOM (bidirectionnelle)</h2>
+      <div class="sub">L'Edge Function <code>sage-sync</code> expose vos données au format Sage et accepte des écritures en retour. Authentification par clé API (Secret Supabase <code>SAGE_API_KEY</code>).</div>
+      <table style="margin-bottom:14px"><thead><tr><th style="width:80px">Méthode</th><th>Endpoint</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag" style="background:#e8f5e9;border:1px solid #81c784;color:#2e7d32">GET</span></td><td class="auto">/functions/v1/sage-sync/bons</td><td>Bons à crédit → format Sage (pièce, compte, montant)</td></tr>
+        <tr><td><span class="tag" style="background:#e8f5e9;border:1px solid #81c784;color:#2e7d32">GET</span></td><td class="auto">/functions/v1/sage-sync/clients</td><td>Liste clients avec n° de compte et compte principal</td></tr>
+        <tr><td><span class="tag" style="background:#fff3e0;border:1px solid #ffb74d;color:#e65100">POST</span></td><td class="auto">/functions/v1/sage-sync/ecritures</td><td>Réception d'écritures comptables depuis Sage 100</td></tr>
+      </tbody></table>
+      <div class="row" style="flex-wrap:wrap;gap:14px;align-items:flex-start">
+        <div style="flex:1;min-width:260px">
+          <div class="help" style="margin-bottom:4px"><strong>Paramètres GET /bons :</strong> <code>station_id</code>, <code>date_from</code> (YYYY-MM-DD), <code>date_to</code></div>
+          <div class="help"><strong>Corps POST /ecritures :</strong> tableau JSON <code>[{station_id,date,compte,libelle,debit,credit,ref}]</code></div>
+        </div>
+        <div style="flex:1;min-width:260px">
+          <div class="help" style="margin-bottom:4px"><strong>URL de base Sage 100 :</strong></div>
+          <code style="font-size:11.5px;background:#f6f4ec;display:block;padding:7px 9px;border-radius:7px;word-break:break-all" id="sageApiUrl">—</code>
+        </div>
+      </div>
+    </div>
   </section>
   <section class="view" id="view-ia">
     <div class="panel">
@@ -674,24 +693,71 @@ function printCloture(){
 }
 
 /* ========================= SUIVI ========================= */
-function renderSuivi(){
-  document.getElementById("suiviCtx").textContent=`${stationName(ctx.station_id)||"—"} · ${MONTHS[ctx.month-1]} ${ctx.year}`;
+function buildSuiviMap(){
   const list=monthBons(); const m={};
   list.forEach(b=>{const r=resolveClient(b.nom,b.cpt);const k=r.cpt||r.nom||"(?)";
-    if(!m[k])m[k]={nom:r.nom,cpt:r.cpt,prin:r.prin,nb:0,qS:0,mS:0,qG:0,mG:0};
+    if(!m[k])m[k]={nom:r.nom,cpt:r.cpt,prin:r.prin,nb:0,qS:0,mS:0,qG:0,mG:0,bons:[]};
     const o=m[k];const mt=(+b.qte||0)*(+b.pu||0);if(b.bl)o.nb++;
-    if(b.produit==="Super"){o.qS+=+b.qte||0;o.mS+=mt;}else if(b.produit==="Gasoil"){o.qG+=+b.qte||0;o.mG+=mt;}});
-  const rows=Object.values(m).sort((a,b)=>(b.mS+b.mG)-(a.mS+a.mG));
+    if(b.produit==="Super"){o.qS+=+b.qte||0;o.mS+=mt;}else if(b.produit==="Gasoil"){o.qG+=+b.qte||0;o.mG+=mt;}
+    o.bons.push(b);});
+  return m;
+}
+function renderSuivi(){
+  document.getElementById("suiviCtx").textContent=`${stationName(ctx.station_id)||"—"} · ${MONTHS[ctx.month-1]} ${ctx.year}`;
+  const m=buildSuiviMap();
+  const rows=Object.entries(m).sort(([,a],[,b])=>(b.mS+b.mG)-(a.mS+a.mG));
   const body=document.getElementById("suiviBody");
-  if(!rows.length){body.innerHTML=`<tr><td colspan="9"><div class="empty">Aucune donnée pour ce mois.</div></td></tr>`;document.getElementById("suiviFoot").innerHTML="";return;}
-  body.innerHTML=rows.map(o=>`<tr><td>${esc(o.nom)}</td><td class="auto">${esc(o.cpt)}</td><td class="auto">${esc(o.prin)}</td>
+  if(!rows.length){body.innerHTML=`<tr><td colspan="10"><div class="empty">Aucune donnée pour ce mois.</div></td></tr>`;document.getElementById("suiviFoot").innerHTML="";return;}
+  body.innerHTML=rows.map(([k,o])=>`<tr><td>${esc(o.nom)}</td><td class="auto">${esc(o.cpt)}</td><td class="auto">${esc(o.prin)}</td>
     <td class="num">${o.nb}</td><td class="num">${fmt(o.qS)}</td><td class="num">${fmt0(o.mS)}</td>
-    <td class="num">${fmt(o.qG)}</td><td class="num">${fmt0(o.mG)}</td><td class="num"><strong>${fmt0(o.mS+o.mG)}</strong></td></tr>`).join("");
-  const T=rows.reduce((a,o)=>({nb:a.nb+o.nb,qS:a.qS+o.qS,mS:a.mS+o.mS,qG:a.qG+o.qG,mG:a.mG+o.mG}),{nb:0,qS:0,mS:0,qG:0,mG:0});
-  document.getElementById("suiviFoot").innerHTML=`<tr><td colspan="3"><strong>TOTAL</strong></td><td class="num"><strong>${T.nb}</strong></td>
-    <td class="num"><strong>${fmt(T.qS)}</strong></td><td class="num"><strong>${fmt0(T.mS)}</strong></td>
-    <td class="num"><strong>${fmt(T.qG)}</strong></td><td class="num"><strong>${fmt0(T.mG)}</strong></td>
-    <td class="num"><strong>${fmt0(T.mS+T.mG)}</strong></td></tr>`;
+    <td class="num">${fmt(o.qG)}</td><td class="num">${fmt0(o.mG)}</td><td class="num"><strong>${fmt0(o.mS+o.mG)}</strong></td>
+    <td class="noprint"><button class="btn ghost small" data-releve="${esc(k)}">Relevé</button></td></tr>`).join("");
+  document.querySelectorAll("[data-releve]").forEach(b=>b.onclick=()=>printReleve(b.dataset.releve));
+  const Tc=rows.reduce((a,[,o])=>({nb:a.nb+o.nb,qS:a.qS+o.qS,mS:a.mS+o.mS,qG:a.qG+o.qG,mG:a.mG+o.mG}),{nb:0,qS:0,mS:0,qG:0,mG:0});
+  document.getElementById("suiviFoot").innerHTML=`<tr><td colspan="3"><strong>TOTAL</strong></td><td class="num"><strong>${Tc.nb}</strong></td>
+    <td class="num"><strong>${fmt(Tc.qS)}</strong></td><td class="num"><strong>${fmt0(Tc.mS)}</strong></td>
+    <td class="num"><strong>${fmt(Tc.qG)}</strong></td><td class="num"><strong>${fmt0(Tc.mG)}</strong></td>
+    <td class="num"><strong>${fmt0(Tc.mS+Tc.mG)}</strong></td><td class="noprint"></td></tr>`;
+}
+
+/* ========================= RELEVÉ PAR CLIENT ========================= */
+function releveClientHtml(o,bonsClient){
+  const station=esc(stationName(ctx.station_id)||"—");
+  const period=`${MONTHS[ctx.month-1]} ${ctx.year}`;
+  const lignes=bonsClient.slice().sort((a,b)=>a.d_day-b.d_day).map((b,i)=>{const mt=(+b.qte||0)*(+b.pu||0);
+    return `<tr><td class="num">${String(b.d_day).padStart(2,"0")}/${String(b.d_month).padStart(2,"0")}/${b.d_year}</td>
+      <td>${esc(b.bl)}</td><td>${esc(b.immat)}</td><td>${esc(b.produit)}</td>
+      <td class="num">${fmt(b.qte)}</td><td class="num">${fmt(b.pu)}</td><td class="num">${fmt0(mt)}</td></tr>`;}).join("");
+  return `<div class="bon" style="page-break-after:always">
+    <div class="head"><div><h3>RELEVÉ CLIENT</h3><div>${station}</div></div>
+      <div class="meta">${esc(period)}</div></div>
+    <div style="margin-bottom:12px;font-size:13px"><strong>${esc(o.nom||"(sans nom)")}</strong>
+      ${o.cpt?` · N° compte : ${esc(o.cpt)}`:""}${o.prin?` · Compte principal : ${esc(o.prin)}`:""}</div>
+    <table><thead><tr><th>Date</th><th>N° bon</th><th>Immat.</th><th>Produit</th>
+      <th class="num">Qté (L)</th><th class="num">PU (XOF)</th><th class="num">Montant</th></tr></thead>
+    <tbody>${lignes||`<tr><td colspan="7" style="text-align:center;color:#999">Aucun bon à crédit ce mois.</td></tr>`}</tbody>
+    <tfoot><tr class="totrow"><td colspan="3">TOTAL</td><td></td>
+      <td class="num">${fmt(o.qS+o.qG)}</td><td></td><td class="num">${fmt0(o.mS+o.mG)} XOF</td></tr></tfoot></table>
+    <div class="grid2" style="margin-top:14px">
+      <div class="box"><h4>Super</h4><table><tbody>
+        <tr><td>Quantité</td><td class="num">${fmt(o.qS)} L</td></tr>
+        <tr><td>Montant</td><td class="num">${fmt0(o.mS)} XOF</td></tr></tbody></table></div>
+      <div class="box"><h4>Gasoil</h4><table><tbody>
+        <tr><td>Quantité</td><td class="num">${fmt(o.qG)} L</td></tr>
+        <tr><td>Montant</td><td class="num">${fmt0(o.mG)} XOF</td></tr></tbody></table></div></div>
+    <div class="sign"><div>Visa du gérant</div><div>Visa client (${esc(o.nom||"—")})</div></div></div>`;
+}
+function printReleve(cptKey){
+  const m=buildSuiviMap(); const o=m[cptKey]; if(!o){toast("Client introuvable.");return;}
+  document.getElementById("print-area").innerHTML=releveClientHtml(o,o.bons);
+  window.print();
+}
+function printReleveTous(){
+  const m=buildSuiviMap();
+  const html=Object.entries(m).sort(([,a],[,b])=>(b.mS+b.mG)-(a.mS+a.mG))
+    .map(([,o])=>releveClientHtml(o,o.bons)).join("");
+  document.getElementById("print-area").innerHTML=html||"<p>Aucune donnée.</p>";
+  window.print();
 }
 
 /* ========================= EXPORT ========================= */
@@ -706,6 +772,8 @@ function renderExport(){
   const rows=exportRows(),sep=";";
   document.getElementById("sageOut").value=[header.join(sep)].concat(rows.map(r=>r.join(sep))).join("\n");
   document.getElementById("expCount").textContent=`${rows.length} ligne(s)`;
+  const apiEl=document.getElementById("sageApiUrl");
+  if(apiEl&&URL) apiEl.textContent=`${URL}/functions/v1/sage-sync/bons?station_id=${ctx.station_id||"<uuid>"}&date_from=${ctx.year}-${String(ctx.month).padStart(2,"0")}-01`;
 }
 function downloadCsv(){
   const csv="\uFEFF"+document.getElementById("sageOut").value;
@@ -1006,6 +1074,7 @@ function wireApp(){
     try{await Store.upsertTarif({produit,prix,date_effet});document.getElementById("newTarPrix").value="";data.tarifs=await Store.listTarifs();renderParam();toast("Tarif enregistré.");}catch(e){toast("Échec : "+e.message);}
   };
   document.getElementById("btnBackup").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="sauvegarde_facturation.json";a.click();};
+  document.getElementById("btnPrintSuivi").onclick=printReleveTous;
   document.getElementById("btnAnalyser").onclick=analyser;
   document.getElementById("btnLogout").onclick=async()=>{ await sb.auth.signOut(); };
 }
