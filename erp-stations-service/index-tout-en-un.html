@@ -93,6 +93,11 @@
   .pump-table{overflow-x:auto;-webkit-overflow-scrolling:touch}.pump-table table{min-width:1100px}
   .pump-sec{margin-bottom:18px}
   .pump-sec h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .pager{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+  .pager button{background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 10px;color:var(--ink);font-family:var(--mono);font-size:13px}
+  .pager button:hover:not(:disabled){background:#eef3ef}
+  .pager button:disabled{opacity:.4;cursor:not-allowed}
+  .pager .pinfo{color:var(--muted);font-size:12.5px;margin-right:4px}
 </style>
 </head>
 <body>
@@ -149,6 +154,7 @@
         <th class="num" style="width:90px">Quantité</th><th class="num" style="width:90px">PU</th>
         <th class="num" style="width:110px">Montant</th><th style="width:34px"></th>
       </tr></thead><tbody id="saisieBody"></tbody></table>
+      <div id="saisiePager"></div>
       <div class="row" style="margin-top:12px"><button class="btn" id="addRow">+ Ajouter une ligne</button>
         <span class="help">Saisie au choix : nom <em>ou</em> n° de compte. Synchronisé entre postes.</span></div>
     </div>
@@ -188,7 +194,8 @@
       <div class="row noprint" style="margin-bottom:10px;gap:6px;flex-wrap:wrap" id="suiviStFilter"></div>
       <table><thead><tr><th>Client</th><th>N° compte</th><th>Compte principal</th><th>Station</th><th class="num">Nb bons</th>
         <th class="num">Qté Super</th><th class="num">Montant Super</th><th class="num">Qté Gasoil</th><th class="num">Montant Gasoil</th><th class="num">Total facturé</th><th class="noprint" style="width:74px"></th>
-      </tr></thead><tbody id="suiviBody"></tbody><tfoot id="suiviFoot"></tfoot></table></div>
+      </tr></thead><tbody id="suiviBody"></tbody><tfoot id="suiviFoot"></tfoot></table>
+      <div id="suiviPager"></div></div>
   </section>
   <section class="view" id="view-export">
     <div class="panel"><h2>Export CSV — Sage 100 Gestion Commerciale</h2>
@@ -239,6 +246,7 @@
   <section class="view" id="view-param">
     <div class="panel"><h2>Stations</h2><div class="sub">Géré par l'administrateur.</div>
       <table><thead><tr><th>Nom de la station</th><th style="width:40px"></th></tr></thead><tbody id="stationBody"></tbody></table>
+      <div id="stationPager"></div>
       <div class="row" style="margin-top:10px">
         <input id="newStation" class="cell" style="max-width:280px;border:1px solid var(--line)" placeholder="Nom de la station"/>
         <button class="btn small" id="addStation">Ajouter</button>
@@ -254,6 +262,7 @@
 
     <div class="panel"><h2>Pompes</h2><div class="sub">Une ligne par pompe physique de la station courante. Le nom (P1A, P2B…) apparaît dans la fiche de clôture.</div>
       <table><thead><tr><th>Nom</th><th>Produit</th><th style="width:40px"></th></tr></thead><tbody id="pompeBody"></tbody></table>
+      <div id="pompePager"></div>
       <div class="row" style="margin-top:10px">
         <input id="newPompeNom" class="cell" style="max-width:130px;border:1px solid var(--line)" placeholder="Ex: P1A"/>
         <select id="newPompeProd" class="cell" style="border:1px solid var(--line)"><option>Gasoil</option><option>Super</option></select>
@@ -262,6 +271,7 @@
 
     <div class="panel"><h2>Clients</h2><div class="sub">N° compte, nom, compte principal (compte collectif, ex. 411000).</div>
       <table><thead><tr><th>N° compte</th><th>Nom client</th><th>Compte principal</th><th style="width:40px"></th></tr></thead><tbody id="clientBody"></tbody></table>
+      <div id="clientPager"></div>
       <div class="row" style="margin-top:10px">
         <input id="newCpt" class="cell" style="max-width:140px;border:1px solid var(--line)" placeholder="N° compte"/>
         <input id="newName" class="cell" style="max-width:240px;border:1px solid var(--line)" placeholder="Nom client"/>
@@ -279,6 +289,7 @@
 
     <div class="panel"><h2>Tarifs carburant</h2><div class="sub">Prix unitaire par produit (XOF). Le tarif le plus récent (selon sa date d'effet) s'applique automatiquement quand on choisit le produit à la saisie.</div>
       <table><thead><tr><th>Produit</th><th class="num">Prix unitaire</th><th>Date d'effet</th><th style="width:40px"></th></tr></thead><tbody id="tarifBody"></tbody></table>
+      <div id="tarifPager"></div>
       <div class="row" style="margin-top:10px">
         <select id="newTarProd" class="cell" style="max-width:140px;border:1px solid var(--line)"><option>Super</option><option>Gasoil</option></select>
         <input id="newTarPrix" class="cell num" style="max-width:130px;border:1px solid var(--line)" placeholder="Prix" inputmode="decimal"/>
@@ -288,6 +299,7 @@
     <div class="panel" id="usersPanel" style="display:none"><h2>Utilisateurs &amp; rôles</h2>
       <div class="sub">Gérez les rôles et stations de chaque utilisateur. L'utilisateur doit déjà avoir créé son compte ou vous pouvez en créer un directement.</div>
       <table><thead><tr><th>E-mail</th><th>Rôle</th><th>Stations assignées</th><th style="width:40px"></th></tr></thead><tbody id="userBody"></tbody></table>
+      <div id="userPager"></div>
       <details style="margin-top:14px"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Créer un nouveau compte utilisateur ▸</summary>
         <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
           <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px">E-mail</label>
@@ -407,6 +419,30 @@ function currentPrice(produit,y,m,d){
     .sort((a,b)=>String(a.date_effet)<String(b.date_effet)?1:-1);
   return cand.length?Number(cand[0].prix):null;
 }
+/* ---- Pagination générique : 30 éléments par page max ---- */
+const PAGE_SIZE=30;
+let pageState={}; // clé de liste -> n° de page (1-based)
+function paginate(items,key){
+  const total=items.length;
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  let p=pageState[key]||1; if(p>pages)p=pages; if(p<1)p=1; pageState[key]=p;
+  const start=(p-1)*PAGE_SIZE;
+  return {slice:items.slice(start,start+PAGE_SIZE),page:p,pages,total,start};
+}
+function pagerHtml(key,page,pages,total){
+  if(pages<=1)return "";
+  return `<div class="pager noprint">
+    <span class="pinfo">${total} éléments · page ${page}/${pages}</span>
+    <button data-pg="${key}:1" ${page<=1?"disabled":""}>«</button>
+    <button data-pg="${key}:${page-1}" ${page<=1?"disabled":""}>‹</button>
+    <button data-pg="${key}:${page+1}" ${page>=pages?"disabled":""}>›</button>
+    <button data-pg="${key}:${pages}" ${page>=pages?"disabled":""}>»</button></div>`;
+}
+function setPager(containerId,key,page,pages,total,rerender){
+  const el=document.getElementById(containerId); if(!el)return;
+  el.innerHTML=pagerHtml(key,page,pages,total);
+  el.querySelectorAll("[data-pg]").forEach(b=>b.onclick=()=>{const [k,pg]=b.dataset.pg.split(":");pageState[k]=+pg;rerender();});
+}
 function visibleStations(){ if(me.role==="admin")return data.stations; return data.stations.filter(s=>(me.station_ids||[]).includes(s.id)); }
 function monthBons(){ return data.bons.filter(b=>b.station_id===ctx.station_id&&b.d_year===ctx.year&&b.d_month===ctx.month); }
 function dayBons(){ return monthBons().filter(b=>b.d_day===ctx.day).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
@@ -460,8 +496,10 @@ function renderSaisie(){
   document.getElementById("dayInput").value=ctx.day;
   document.getElementById("dayDate").textContent=dateLabel(ctx.year,ctx.month,ctx.day);
   const body=document.getElementById("saisieBody"); const list=dayBons();
-  body.innerHTML=list.length?list.map((b,i)=>rowHtml(b,i+1)).join(""):
+  const pg=paginate(list,"saisie");
+  body.innerHTML=list.length?pg.slice.map((b,i)=>rowHtml(b,pg.start+i+1)).join(""):
     `<tr><td colspan="10"><div class="empty">Aucun bon pour ce jour. Cliquez « Ajouter une ligne ».</div></td></tr>`;
+  setPager("saisiePager","saisie",pg.page,pg.pages,pg.total,renderSaisie);
   renderKpis(); bindSaisie();
   // verrou si la journée est clôturée
   const closed=dayIsClosed();
@@ -804,6 +842,7 @@ function renderSuiviFilter(){
 }
 async function setSuiviSel(sid){
   if(!sid){suiviSel.clear();}else if(suiviSel.has(sid)){suiviSel.delete(sid);}else{suiviSel.add(sid);}
+  pageState.suivi=1;
   renderSuiviFilter();await reloadSuiviBons();_renderSuiviTable();
 }
 function _renderSuiviTable(){
@@ -818,8 +857,10 @@ function _renderSuiviTable(){
     return sa.localeCompare(sb2);
   });
   const body=document.getElementById("suiviBody");
-  if(!rows.length){body.innerHTML=`<tr><td colspan="11"><div class="empty">Aucune donnée pour ce mois.</div></td></tr>`;document.getElementById("suiviFoot").innerHTML="";return;}
-  body.innerHTML=rows.map(([k,o])=>{const stLbl=[...o.stations].map(id=>stationName(id)||"").sort().join(", ");
+  if(!rows.length){body.innerHTML=`<tr><td colspan="11"><div class="empty">Aucune donnée pour ce mois.</div></td></tr>`;document.getElementById("suiviFoot").innerHTML="";setPager("suiviPager","suivi",1,1,0,_renderSuiviTable);return;}
+  const pg=paginate(rows,"suivi");
+  setPager("suiviPager","suivi",pg.page,pg.pages,pg.total,_renderSuiviTable);
+  body.innerHTML=pg.slice.map(([k,o])=>{const stLbl=[...o.stations].map(id=>stationName(id)||"").sort().join(", ");
     return `<tr><td>${esc(o.nom)}</td><td class="auto">${esc(o.cpt)}</td><td class="auto">${esc(o.prin)}</td>
       <td class="auto" style="font-size:12px">${esc(stLbl)}</td>
       <td class="num">${o.nb}</td><td class="num">${fmt(o.qS)}</td><td class="num">${fmt0(o.mS)}</td>
@@ -963,24 +1004,32 @@ async function analyser(){
 /* ========================= PARAMÈTRES ========================= */
 function renderParam(){
   const adm=me.role==="admin";
-  document.getElementById("stationBody").innerHTML=data.stations.map(s=>
+  const pgSt=paginate(data.stations,"station");
+  document.getElementById("stationBody").innerHTML=pgSt.slice.map(s=>
     `<tr><td>${esc(s.name)}</td><td>${adm?`<button class="btn ghost small" data-delst="${s.id}">✕</button>`:""}</td></tr>`).join("")
     ||`<tr><td colspan="2" class="muted">Aucune station.</td></tr>`;
-  document.getElementById("clientBody").innerHTML=data.clients.map(c=>
+  setPager("stationPager","station",pgSt.page,pgSt.pages,pgSt.total,renderParam);
+  const pgCl=paginate(data.clients,"client");
+  document.getElementById("clientBody").innerHTML=pgCl.slice.map(c=>
     `<tr><td class="auto">${esc(c.cpt)}</td><td>${esc(c.nom)}</td><td class="auto">${esc(c.prin)}</td>
      <td>${adm?`<button class="btn ghost small" data-delcl="${esc(c.cpt)}">✕</button>`:""}</td></tr>`).join("")
     ||`<tr><td colspan="4" class="muted">Aucun client.</td></tr>`;
-  document.getElementById("tarifBody").innerHTML=(data.tarifs||[]).map(t=>
+  setPager("clientPager","client",pgCl.page,pgCl.pages,pgCl.total,renderParam);
+  const pgTar=paginate(data.tarifs||[],"tarif");
+  document.getElementById("tarifBody").innerHTML=pgTar.slice.map(t=>
     `<tr><td>${esc(t.produit)}</td><td class="num">${fmt(t.prix)}</td><td class="auto">${esc(t.date_effet)}</td>
      <td>${adm?`<button class="btn ghost small" data-deltar="${t.id}">✕</button>`:""}</td></tr>`).join("")
     ||`<tr><td colspan="4" class="muted">Aucun tarif. Ajoutez le prix du Super et du Gasoil.</td></tr>`;
+  setPager("tarifPager","tarif",pgTar.page,pgTar.pages,pgTar.total,renderParam);
   const td=document.getElementById("newTarDate"); if(td&&!td.value)td.value=new Date().toISOString().slice(0,10);
   document.querySelectorAll("[data-deltar]").forEach(b=>b.onclick=async()=>{try{await Store.delTarif(b.dataset.deltar);data.tarifs=await Store.listTarifs();renderParam();}catch(e){toast("Échec : "+e.message);}});
   document.getElementById("usersPanel").style.display=adm?"block":"none";
   if(adm){
     const RLABS={admin:"Administrateur",gerant:"Gérant",comptable:"Comptable",agent_facturation:"Agent facturation",chef_piste:"Chef de piste"};
     const stOpts=(ids=[])=>data.stations.map(s=>`<option value="${s.id}" ${(ids||[]).includes(s.id)?"selected":""}>${esc(s.name)}</option>`).join("");
-    document.getElementById("userBody").innerHTML=data.profiles.map(p=>{ const pids=p.station_ids||(p.station_id?[p.station_id]:[]); return `<tr>
+    const pgUs=paginate(data.profiles,"user");
+    setPager("userPager","user",pgUs.page,pgUs.pages,pgUs.total,renderParam);
+    document.getElementById("userBody").innerHTML=pgUs.slice.map(p=>{ const pids=p.station_ids||(p.station_id?[p.station_id]:[]); return `<tr>
       <td>${esc(p.email)}</td>
       <td><select class="cell" data-urole="${p.id}" style="border:1px solid var(--line)">
         ${Object.entries(RLABS).map(([v,l])=>`<option value="${v}" ${p.role===v?"selected":""}>${l}</option>`).join("")}
@@ -1014,10 +1063,12 @@ function renderParam(){
   ["newStation","addStation","bulkStations","importStations","newCpt","newName","newPrin","addClient","bulkClients","importClients","newTarProd","newTarPrix","newTarDate","addTarif"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delst]").forEach(b=>b.onclick=async()=>{try{await Store.delStation(b.dataset.delst);}catch(e){toast("Échec : "+e.message);}});
   // Pompes
-  document.getElementById("pompeBody").innerHTML=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id).map(p=>
+  const pgPo=paginate((data.pompes||[]).filter(p=>p.station_id===ctx.station_id),"pompe");
+  document.getElementById("pompeBody").innerHTML=pgPo.slice.map(p=>
     `<tr><td>${esc(p.nom)}</td><td>${esc(p.produit)}</td>
      <td>${adm?`<button class="btn ghost small" data-delpompe="${p.id}">✕</button>`:""}</td></tr>`).join("")
     ||`<tr><td colspan="3" class="muted">Aucune pompe pour cette station. Ajoutez P1A, P2A (Gasoil) puis P1B, P2B (Essence).</td></tr>`;
+  setPager("pompePager","pompe",pgPo.page,pgPo.pages,pgPo.total,renderParam);
   document.querySelectorAll("[data-delpompe]").forEach(b=>b.onclick=async()=>{try{await Store.delPompe(b.dataset.delpompe);await reloadPompes();renderParam();}catch(e){toast("Échec : "+e.message);}});
   ["newPompeNom","addPompe","newPompeProd"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delcl]").forEach(b=>b.onclick=async()=>{try{await Store.delClient(b.dataset.delcl);}catch(e){toast("Échec : "+e.message);}});
@@ -1156,9 +1207,9 @@ function wireApp(){
   document.getElementById("ctxStation").onchange=async e=>{ctx.station_id=e.target.value;await reloadBons();await reloadFiches();await reloadPompes();await reloadReleves();refreshActive();};
   document.getElementById("ctxMonth").onchange=async e=>{ctx.month=+e.target.value;clampDay();await reloadBons();await reloadFiches();await reloadReleves();refreshActive();};
   document.getElementById("ctxYear").onchange=async e=>{ctx.year=+e.target.value;clampDay();await reloadBons();await reloadFiches();await reloadReleves();refreshActive();};
-  document.getElementById("prevDay").onclick=()=>{if(ctx.day>1){ctx.day--;renderSaisie();}};
-  document.getElementById("nextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;renderSaisie();}};
-  document.getElementById("dayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);renderSaisie();};
+  document.getElementById("prevDay").onclick=()=>{if(ctx.day>1){ctx.day--;pageState.saisie=1;renderSaisie();}};
+  document.getElementById("nextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;pageState.saisie=1;renderSaisie();}};
+  document.getElementById("dayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);pageState.saisie=1;renderSaisie();};
   document.getElementById("addRow").onclick=addRow;
   document.getElementById("btnPrint").onclick=doPrint;
   // Clôture du jour
