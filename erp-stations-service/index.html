@@ -121,6 +121,7 @@
 </div>
 <nav class="tabs">
   <button data-tab="saisie" class="active">Saisie du jour</button>
+  <button data-tab="cloture">Clôture du jour</button>
   <button data-tab="bon">Bon imprimable</button>
   <button data-tab="suivi">Suivi clients</button>
   <button data-tab="export">Export Sage</button>
@@ -146,6 +147,49 @@
       </tr></thead><tbody id="saisieBody"></tbody></table>
       <div class="row" style="margin-top:12px"><button class="btn" id="addRow">+ Ajouter une ligne</button>
         <span class="help">Saisie au choix : nom <em>ou</em> n° de compte. Synchronisé entre postes.</span></div>
+    </div>
+  </section>
+  <section class="view" id="view-cloture">
+    <div class="panel">
+      <div class="daynav">
+        <button class="btn ghost small" id="clPrevDay">◀</button>
+        <span class="daypill">Jour <input id="clDayInput" type="number" min="1" max="31" value="1" style="width:48px;border:0;font-family:var(--mono);font-size:13px"/></span>
+        <button class="btn ghost small" id="clNextDay">▶</button>
+        <span class="date" id="clDayDate">—</span>
+        <span class="right" id="clStatutBadge"></span>
+      </div>
+      <div id="clReouvertInfo" class="banner" style="display:none;background:#fff4d6;border-color:#e7cf8a;color:#6b531a"></div>
+      <div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:280px">
+          <h2 style="font-size:15px;margin-bottom:8px">Index pompes — volumes vendus</h2>
+          <div class="sub">Litres relevés au compteur des pompes pour la journée.</div>
+          <div class="row" style="margin-bottom:10px">
+            <div style="flex:1"><label class="help">Super (L)</label>
+              <input id="clVolSuper" class="cell num" inputmode="decimal" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:right"/></div>
+            <div style="flex:1"><label class="help">Gasoil (L)</label>
+              <input id="clVolGasoil" class="cell num" inputmode="decimal" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:right"/></div>
+          </div>
+          <h2 style="font-size:15px;margin:14px 0 8px">Encaissement</h2>
+          <div class="sub">Espèces réellement remises par le pompiste.</div>
+          <div><label class="help">Versement espèces (XOF)</label>
+            <input id="clVersement" class="cell num" inputmode="decimal" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:right"/></div>
+        </div>
+        <div style="flex:1;min-width:280px">
+          <h2 style="font-size:15px;margin-bottom:8px">Récapitulatif & écart de caisse</h2>
+          <div class="kpis" id="clKpis" style="grid-template-columns:1fr 1fr"></div>
+          <div id="clEcartBox" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin:16px 0 0;background:#fbfaf4">
+        <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:8px">Pré-contrôles avant clôture</h3>
+        <div id="clChecks"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="btnCloturer">Clôturer la journée</button>
+        <button class="btn ghost" id="btnReouvrir" style="display:none">Rouvrir (admin)</button>
+        <button class="btn ghost" id="btnPrintCloture" style="display:none">Imprimer le récapitulatif</button>
+        <span class="help" id="clHint"></span>
+      </div>
     </div>
   </section>
   <section class="view" id="view-bon">
@@ -286,6 +330,11 @@ const Store = {
     let q=sb.from("bons").select("*").eq("station_id",scope.station_id).eq("d_year",scope.year).eq("d_month",scope.month);
     const {data,error}=await q; if(error)throw error; return data;
   },
+  async listFiches(scope){ const {data,error}=await sb.from("fiches").select("*").eq("station_id",scope.station_id).eq("d_year",scope.year).eq("d_month",scope.month); if(error)throw error; return data; },
+  async upsertFiche(f){ const {error}=await sb.from("fiches").upsert(f,{onConflict:"station_id,d_year,d_month,d_day"}); if(error)throw error; },
+  async saveFicheVals(id,patch){ const {error}=await sb.from("fiches").update(patch).eq("id",id); if(error)throw error; },
+  async cloturer(fiche_id){ const {data,error}=await sb.rpc("cloturer_fiche",{p_fiche:fiche_id}); if(error)throw error; return data; },
+  async rouvrir(fiche_id,motif){ const {data,error}=await sb.rpc("rouvrir_fiche",{p_fiche:fiche_id,p_motif:motif}); if(error)throw error; return data; },
   async addStation(name){ const {error}=await sb.from("stations").insert({name}); if(error)throw error; },
   async delStation(id){ const {error}=await sb.from("stations").delete().eq("id",id); if(error)throw error; },
   async upsertClient(c){ const {error}=await sb.from("clients").upsert(c); if(error)throw error; },
@@ -304,7 +353,7 @@ const Store = {
 const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const WD=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 let me={id:"",email:"",role:"gerant",station_ids:[],station_id:null};
-let data={stations:[],clients:[],bons:[],profiles:[],tarifs:[]};
+let data={stations:[],clients:[],bons:[],profiles:[],tarifs:[],fiches:[]};
 let ctx={station_id:"",year:new Date().getFullYear(),month:new Date().getMonth()+1,day:new Date().getDate()};
 let expScope="month";
 const uuid=()=> (crypto.randomUUID? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2)));
@@ -335,6 +384,9 @@ function currentPrice(produit,y,m,d){
 function visibleStations(){ if(me.role==="admin")return data.stations; return data.stations.filter(s=>(me.station_ids||[]).includes(s.id)); }
 function monthBons(){ return data.bons.filter(b=>b.station_id===ctx.station_id&&b.d_year===ctx.year&&b.d_month===ctx.month); }
 function dayBons(){ return monthBons().filter(b=>b.d_day===ctx.day).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)); }
+function currentFiche(){ return (data.fiches||[]).find(f=>f.station_id===ctx.station_id&&f.d_year===ctx.year&&f.d_month===ctx.month&&f.d_day===ctx.day)||null; }
+function dayIsClosed(){ const f=currentFiche(); return !!(f&&f.statut==="cloturee"); }
+const STATUT_LABELS={brouillon:"Brouillon",en_cours:"En cours",prete:"Prête à clôturer",cloturee:"Clôturée"};
 
 /* ========================= CONTEXTE ========================= */
 function fillCtx(){
@@ -355,11 +407,11 @@ function fillCtx(){
 function applyRoleUI(){
   // Show/hide tabs based on role
   const tabCfg={
-    admin:{saisie:1,bon:1,suivi:1,export:1,ia:1,param:1},
-    gerant:{saisie:1,bon:1,suivi:1,export:1,ia:1,param:1},
-    comptable:{saisie:0,bon:0,suivi:1,export:1,ia:1,param:0},
-    agent_facturation:{saisie:1,bon:1,suivi:1,export:1,ia:1,param:0},
-    chef_piste:{saisie:1,bon:0,suivi:0,export:0,ia:0,param:0}
+    admin:{saisie:1,cloture:1,bon:1,suivi:1,export:1,ia:1,param:1},
+    gerant:{saisie:1,cloture:1,bon:1,suivi:1,export:1,ia:1,param:1},
+    comptable:{saisie:0,cloture:1,bon:0,suivi:1,export:1,ia:1,param:0},
+    agent_facturation:{saisie:1,cloture:1,bon:1,suivi:1,export:1,ia:1,param:0},
+    chef_piste:{saisie:1,cloture:1,bon:0,suivi:0,export:0,ia:0,param:0}
   };
   const cfg=tabCfg[me.role]||tabCfg.gerant;
   document.querySelectorAll("nav.tabs button").forEach(b=>{b.style.display=cfg[b.dataset.tab]?"":"none";});
@@ -385,6 +437,16 @@ function renderSaisie(){
   body.innerHTML=list.length?list.map((b,i)=>rowHtml(b,i+1)).join(""):
     `<tr><td colspan="10"><div class="empty">Aucun bon pour ce jour. Cliquez « Ajouter une ligne ».</div></td></tr>`;
   renderKpis(); bindSaisie();
+  // verrou si la journée est clôturée
+  const closed=dayIsClosed();
+  const addBtn=document.getElementById("addRow");
+  if(addBtn)addBtn.style.display=closed?"none":(me.role==="agent_facturation"?"none":"");
+  if(closed){
+    document.querySelectorAll('#saisieBody input.cell,#saisieBody select.cell').forEach(el=>el.disabled=true);
+    document.querySelectorAll('#saisieBody [data-del]').forEach(b=>b.disabled=true);
+  }
+  const st=document.getElementById("syncTxt");
+  if(st)st.textContent=closed?"journée clôturée 🔒":"temps réel";
 }
 function rowHtml(b,n){
   const prod=`<select class="cell" data-f="produit" data-id="${b.id}"><option value="">—</option>
@@ -423,9 +485,10 @@ async function onCell(e){
 }
 async function addRow(){
   if(!ctx.station_id){toast("Aucune station sélectionnée. Allez dans Paramètres pour en créer une, puis choisissez-la en haut.");return;}
+  if(dayIsClosed()){toast("Journée clôturée : ajout de bon interdit. Demandez une réouverture à l'administrateur.");return;}
   const row={id:uuid(),station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,
     nom:"",cpt:"",immat:"",bl:"",produit:"",qte:null,pu:null,created_by:me.id};
-  try{ await Store.saveBon(row); await reloadBons(); renderSaisie(); }
+  try{ await Store.saveBon(row); await reloadBons(); await reloadFiches(); renderSaisie(); }
   catch(err){ toast("Création refusée : "+(err&&err.message?err.message:"vérifiez votre station assignée.")); }
 }
 
@@ -452,6 +515,163 @@ function bonHtml(){
 }
 function renderBon(){document.getElementById("bonPreview").innerHTML=bonHtml();}
 function doPrint(){document.getElementById("print-area").innerHTML=bonHtml();window.print();}
+
+/* ========================= CLÔTURE DU JOUR ========================= */
+// Volumes à crédit (bons avec n° de bon) par produit, pour la journée
+function creditVolumes(){
+  let cS=0,cG=0,mS=0,mG=0;
+  dayBons().filter(b=>b.bl).forEach(b=>{const q=+b.qte||0,mt=q*(+b.pu||0);
+    if(b.produit==="Super"){cS+=q;mS+=mt;}else if(b.produit==="Gasoil"){cG+=q;mG+=mt;}});
+  return {cS,cG,mCredit:mS+mG};
+}
+function clotureCalc(){
+  const f=currentFiche();
+  const volS=f&&f.vol_super!=null?+f.vol_super:null;
+  const volG=f&&f.vol_gasoil!=null?+f.vol_gasoil:null;
+  const vers=f&&f.versement!=null?+f.versement:null;
+  const {cS,cG,mCredit}=creditVolumes();
+  const pS=currentPrice("Super",ctx.year,ctx.month,ctx.day);
+  const pG=currentPrice("Gasoil",ctx.year,ctx.month,ctx.day);
+  const cashVolS=(volS!=null?volS:0)-cS;
+  const cashVolG=(volG!=null?volG:0)-cG;
+  const cashTheo=(cashVolS*(pS||0))+(cashVolG*(pG||0));
+  const ecart=(vers!=null)?(vers-cashTheo):null;
+  return {f,volS,volG,vers,cS,cG,mCredit,pS,pG,cashVolS,cashVolG,cashTheo,ecart};
+}
+function statutBadge(st){
+  const map={brouillon:"#6b7d74",en_cours:"#0f5132",prete:"#1f8a4c",cloturee:"#6b7d74"};
+  const c=map[st]||"#6b7d74";
+  const lab=STATUT_LABELS[st]||st;
+  const lock=st==="cloturee"?" 🔒":"";
+  return `<span class="tag" style="background:#fff;border:1px solid ${c};color:${c}">${esc(lab)}${lock}</span>`;
+}
+function renderCloture(){
+  document.getElementById("clDayInput").value=ctx.day;
+  document.getElementById("clDayDate").textContent=dateLabel(ctx.year,ctx.month,ctx.day);
+  const c=clotureCalc();
+  const closed=c.f&&c.f.statut==="cloturee";
+  const canClose=["admin","gerant","chef_piste"].includes(me.role);
+  document.getElementById("clStatutBadge").innerHTML=statutBadge(c.f?c.f.statut:"brouillon");
+
+  // info réouverture
+  const ri=document.getElementById("clReouvertInfo");
+  if(c.f&&c.f.motif_reouverture){ ri.style.display="block";
+    ri.textContent=`Fiche rouverte — motif : ${c.f.motif_reouverture}`; }
+  else ri.style.display="none";
+
+  // champs de saisie
+  const vS=document.getElementById("clVolSuper"), vG=document.getElementById("clVolGasoil"), vV=document.getElementById("clVersement");
+  if(document.activeElement!==vS) vS.value=c.volS!=null?c.volS:"";
+  if(document.activeElement!==vG) vG.value=c.volG!=null?c.volG:"";
+  if(document.activeElement!==vV) vV.value=c.vers!=null?c.vers:"";
+  [vS,vG,vV].forEach(el=>el.disabled=closed||!canClose);
+
+  // KPIs récap
+  document.getElementById("clKpis").innerHTML=`
+    <div class="kpi super"><div class="lab">Cash Super (vol − bons)</div><div class="val">${fmt(c.cashVolS)} L</div></div>
+    <div class="kpi gasoil"><div class="lab">Cash Gasoil (vol − bons)</div><div class="val">${fmt(c.cashVolG)} L</div></div>
+    <div class="kpi tot"><div class="lab">Cash théorique attendu</div><div class="val">${fmt0(c.cashTheo)}</div></div>
+    <div class="kpi"><div class="lab">Total crédits clients</div><div class="val">${fmt0(c.mCredit)}</div></div>`;
+
+  // écart de caisse (couleur)
+  const eb=document.getElementById("clEcartBox");
+  if(c.ecart==null){ eb.innerHTML=`<div class="banner">Saisissez le versement pour calculer l'écart de caisse.</div>`; }
+  else{
+    const a=Math.abs(c.ecart);
+    let col,lab;
+    if(a<1){col="var(--essence)";lab="Caisse équilibrée";}
+    else if(a<=5000){col="var(--gasoil-d)";lab=c.ecart>0?"Excédent modéré":"Manquant modéré";}
+    else{col="var(--danger)";lab=c.ecart>0?"Excédent anormal":"Manquant anormal";}
+    eb.innerHTML=`<div class="kpi" style="border-top:3px solid ${col}">
+      <div class="lab">Écart de caisse (versé − attendu)</div>
+      <div class="val" style="color:${col}">${c.ecart>0?"+":""}${fmt0(c.ecart)} XOF</div>
+      <div class="help" style="color:${col};font-weight:600">${lab}</div></div>`;
+  }
+
+  // pré-contrôles
+  const checks=[
+    {ok:c.volS!=null&&c.volG!=null, t:"Volumes Super et Gasoil renseignés"},
+    {ok:(c.volS||0)>=0&&(c.volG||0)>=0, t:"Volumes positifs"},
+    {ok:c.vers!=null, t:"Versement espèces renseigné"},
+    {ok:c.cashVolS>=0&&c.cashVolG>=0, t:"Volume vendu ≥ volume des bons à crédit"},
+    {ok:(!c.cS||c.pS!=null)&&(!c.cG||c.pG!=null), t:"Tarif du jour disponible pour les produits vendus"}
+  ];
+  document.getElementById("clChecks").innerHTML=checks.map(k=>
+    `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+      <span style="font-size:15px">${k.ok?"✅":"⛔"}</span>
+      <span style="color:${k.ok?"var(--ink)":"var(--danger)"}">${esc(k.t)}</span></div>`).join("");
+  const allOk=checks.every(k=>k.ok);
+
+  // boutons
+  const btnC=document.getElementById("btnCloturer");
+  const btnR=document.getElementById("btnReouvrir");
+  const btnP=document.getElementById("btnPrintCloture");
+  btnC.style.display=(!closed&&canClose)?"":"none";
+  btnC.disabled=!allOk;
+  btnR.style.display=(closed&&me.role==="admin")?"":"none";
+  btnP.style.display=closed?"":"none";
+  const hint=document.getElementById("clHint");
+  if(closed){ hint.textContent=`Clôturée${c.f.cloturee_at?" le "+new Date(c.f.cloturee_at).toLocaleString("fr-FR"):""} — données verrouillées.`; }
+  else if(!canClose){ hint.textContent="Lecture seule (votre rôle ne permet pas la clôture)."; }
+  else if(!allOk){ hint.textContent="Complétez les pré-contrôles pour activer la clôture."; }
+  else { hint.textContent="Tous les contrôles sont OK : la journée peut être clôturée."; }
+}
+async function saveClotureField(field,raw){
+  const v=raw===""?null:parseFloat(String(raw).replace(",","."));
+  if(v!==null&&isNaN(v))return;
+  if(dayIsClosed()){toast("Fiche clôturée : modification interdite.");return;}
+  const f=currentFiche();
+  try{
+    if(!f){ await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,[field]:v}); }
+    else{ await Store.saveFicheVals(f.id,{[field]:v}); }
+    await reloadFiches(); renderCloture();
+  }catch(e){ toast("Échec : "+(e.message||e)); }
+}
+async function doCloturer(){
+  let f=currentFiche();
+  if(!f){ // créer la fiche d'abord (cas rare : aucun bon, valeurs déjà saisies)
+    try{ await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day}); await reloadFiches(); f=currentFiche(); }
+    catch(e){ toast("Échec : "+e.message); return; }
+  }
+  if(!f){ toast("Impossible de créer la fiche du jour."); return; }
+  if(!confirm("Clôturer définitivement cette journée ? Les données seront verrouillées.")) return;
+  try{
+    const r=await Store.cloturer(f.id);
+    await reloadFiches(); renderCloture();
+    if(activeTab()==="saisie")renderSaisie();
+    toast(`Journée clôturée — écart de caisse : ${r&&r.ecart>0?"+":""}${fmt0(r?r.ecart:0)} XOF`);
+  }catch(e){ toast("Clôture refusée : "+(e.message||e)); }
+}
+async function doRouvrir(){
+  const f=currentFiche(); if(!f)return;
+  const motif=prompt("Motif de réouverture (obligatoire) :");
+  if(motif==null)return;
+  if(!motif.trim()){toast("Motif obligatoire.");return;}
+  try{
+    await Store.rouvrir(f.id,motif.trim());
+    await reloadFiches(); renderCloture();
+    if(activeTab()==="saisie")renderSaisie();
+    toast("Fiche rouverte.");
+  }catch(e){ toast("Réouverture refusée : "+(e.message||e)); }
+}
+function printCloture(){
+  const c=clotureCalc(); const f=c.f;
+  const html=`<div class="bon"><div class="head"><div><h3>RÉCAPITULATIF DE CLÔTURE</h3>
+    <div>${esc(stationName(ctx.station_id)||"—")}</div></div>
+    <div class="meta">${dateLabel(ctx.year,ctx.month,ctx.day)}<br>${STATUT_LABELS[f?f.statut:""]||""}</div></div>
+    <table><tbody>
+      <tr><td>Volume Super vendu</td><td class="num">${fmt(c.volS)} L</td></tr>
+      <tr><td>Volume Gasoil vendu</td><td class="num">${fmt(c.volG)} L</td></tr>
+      <tr><td>Bons à crédit Super / Gasoil</td><td class="num">${fmt(c.cS)} / ${fmt(c.cG)} L</td></tr>
+      <tr><td>Cash théorique attendu</td><td class="num">${fmt0(c.cashTheo)} XOF</td></tr>
+      <tr><td>Versement espèces</td><td class="num">${fmt0(c.vers)} XOF</td></tr>
+      <tr class="totrow"><td>Écart de caisse</td><td class="num">${c.ecart>0?"+":""}${fmt0(c.ecart)} XOF</td></tr>
+      <tr><td>Total crédits clients</td><td class="num">${fmt0(c.mCredit)} XOF</td></tr>
+    </tbody></table>
+    ${f&&f.cloturee_at?`<p class="help">Clôturée le ${new Date(f.cloturee_at).toLocaleString("fr-FR")}</p>`:""}
+    <div class="sign"><div>Visa du gérant</div><div>Visa contrôle</div></div></div>`;
+  document.getElementById("print-area").innerHTML=html; window.print();
+}
 
 /* ========================= SUIVI ========================= */
 function renderSuivi(){
@@ -624,6 +844,7 @@ function showTab(tab){
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+tab));
   if(tab==="bon")renderBon();if(tab==="suivi")renderSuivi();if(tab==="export")renderExport();
   if(tab==="param")renderParam();if(tab==="saisie")renderSaisie();if(tab==="ia")renderIA();
+  if(tab==="cloture")renderCloture();
 }
 function clampDay(){const dim=daysInMonth(ctx.year,ctx.month);if(ctx.day>dim)ctx.day=dim;if(ctx.day<1)ctx.day=1;}
 function refreshActive(){fillCtx();showTab(activeTab());}
@@ -634,6 +855,11 @@ async function reloadBons(){
   try{ data.bons=await Store.listBons({station_id:ctx.station_id,year:ctx.year,month:ctx.month}); }
   catch(e){ data.bons=[]; }
 }
+async function reloadFiches(){
+  if(!ctx.station_id){data.fiches=[];return;}
+  try{ data.fiches=await Store.listFiches({station_id:ctx.station_id,year:ctx.year,month:ctx.month}); }
+  catch(e){ data.fiches=[]; }
+}
 async function reloadAll(){
   try{
     const [st,cl,tf]=await Promise.all([Store.listStations(),Store.listClients(),Store.listTarifs()]);
@@ -642,12 +868,14 @@ async function reloadAll(){
   }catch(e){ /* RLS peut limiter : on garde ce qu'on a */ }
   fillCtx();
   await reloadBons();
+  await reloadFiches();
 }
 let channels=[];
 function startRealtime(){
   stopRealtime();
-  const onChange=async()=>{ await reloadBons(); if(activeTab()==="saisie")renderSaisie(); if(activeTab()==="bon")renderBon(); if(activeTab()==="suivi")renderSuivi(); if(activeTab()==="export")renderExport(); };
+  const onChange=async()=>{ await reloadBons(); const t=activeTab(); if(t==="saisie")renderSaisie(); if(t==="bon")renderBon(); if(t==="suivi")renderSuivi(); if(t==="export")renderExport(); if(t==="cloture")renderCloture(); };
   channels.push(Store.channel("rt-bons","bons",onChange));
+  channels.push(Store.channel("rt-fiches","fiches",async()=>{ await reloadFiches(); const t=activeTab(); if(t==="cloture")renderCloture(); if(t==="saisie")renderSaisie(); }));
   channels.push(Store.channel("rt-stations","stations",async()=>{data.stations=await Store.listStations();refreshActive();}));
   channels.push(Store.channel("rt-clients","clients",async()=>{data.clients=await Store.listClients();refreshLists();if(activeTab()==="param")renderParam();}));
   channels.push(Store.channel("rt-tarifs","tarifs",async()=>{try{data.tarifs=await Store.listTarifs();}catch(e){}if(activeTab()==="param")renderParam();}));
@@ -720,14 +948,24 @@ async function loadMe(user){
 
 function wireApp(){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-  document.getElementById("ctxStation").onchange=async e=>{ctx.station_id=e.target.value;await reloadBons();refreshActive();};
-  document.getElementById("ctxMonth").onchange=async e=>{ctx.month=+e.target.value;clampDay();await reloadBons();refreshActive();};
-  document.getElementById("ctxYear").onchange=async e=>{ctx.year=+e.target.value;clampDay();await reloadBons();refreshActive();};
+  document.getElementById("ctxStation").onchange=async e=>{ctx.station_id=e.target.value;await reloadBons();await reloadFiches();refreshActive();};
+  document.getElementById("ctxMonth").onchange=async e=>{ctx.month=+e.target.value;clampDay();await reloadBons();await reloadFiches();refreshActive();};
+  document.getElementById("ctxYear").onchange=async e=>{ctx.year=+e.target.value;clampDay();await reloadBons();await reloadFiches();refreshActive();};
   document.getElementById("prevDay").onclick=()=>{if(ctx.day>1){ctx.day--;renderSaisie();}};
   document.getElementById("nextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;renderSaisie();}};
   document.getElementById("dayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);renderSaisie();};
   document.getElementById("addRow").onclick=addRow;
   document.getElementById("btnPrint").onclick=doPrint;
+  // Clôture du jour
+  document.getElementById("clPrevDay").onclick=()=>{if(ctx.day>1){ctx.day--;renderCloture();}};
+  document.getElementById("clNextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;renderCloture();}};
+  document.getElementById("clDayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);renderCloture();};
+  document.getElementById("clVolSuper").onchange=e=>saveClotureField("vol_super",e.target.value);
+  document.getElementById("clVolGasoil").onchange=e=>saveClotureField("vol_gasoil",e.target.value);
+  document.getElementById("clVersement").onchange=e=>saveClotureField("versement",e.target.value);
+  document.getElementById("btnCloturer").onclick=doCloturer;
+  document.getElementById("btnReouvrir").onclick=doRouvrir;
+  document.getElementById("btnPrintCloture").onclick=printCloture;
   document.querySelectorAll("#expScope button").forEach(b=>b.onclick=()=>{expScope=b.dataset.scope;document.querySelectorAll("#expScope button").forEach(x=>x.classList.toggle("on",x===b));renderExport();});
   document.getElementById("btnCsv").onclick=downloadCsv;
   document.getElementById("btnCopy").onclick=()=>{navigator.clipboard.writeText(document.getElementById("sageOut").value);toast("Export copié.");};
