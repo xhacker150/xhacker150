@@ -542,19 +542,17 @@ function releveCalc(r){
   const montant=Math.round(cons*pu*100)/100-retour;
   const espece=r&&r.espece!=null?+r.espece:0;
   const bons=r&&r.bons!=null?+r.bons:0;
-  const spa=r&&r.spa!=null?+r.spa:0;
-  const sae=r&&r.sae!=null?+r.sae:0;
-  const controle=espece+bons+spa+sae;
+  const controle=espece+bons;
   const ecart=Math.round((controle-montant)*100)/100;
-  return {cons,pu,retour,montant,espece,bons,spa,sae,controle,ecart};
+  return {cons,pu,retour,montant,espece,bons,controle,ecart};
 }
 function produitTotals(produit){
   const pompes=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit);
-  let cons=0,montant=0,espece=0,bons=0,spa=0,sae=0,retour=0;
+  let cons=0,montant=0,espece=0,bons=0,retour=0;
   pompes.forEach(p=>{const r=dayReleve(p.id);const c=releveCalc(r);
-    cons+=c.cons;montant+=c.montant;espece+=c.espece;bons+=c.bons;spa+=c.spa;sae+=c.sae;retour+=c.retour;});
-  const controle=espece+bons+spa+sae;
-  return {cons,montant,espece,bons,spa,sae,retour,controle,ecart:Math.round((controle-montant)*100)/100};
+    cons+=c.cons;montant+=c.montant;espece+=c.espece;bons+=c.bons;retour+=c.retour;});
+  const controle=espece+bons;
+  return {cons,montant,espece,bons,retour,controle,ecart:Math.round((controle-montant)*100)/100};
 }
 function cloPumpTableHtml(produit){
   const pompes=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit);
@@ -578,8 +576,6 @@ function cloPumpTableHtml(produit){
       <td class="num auto">${c.montant?fmt0(c.montant):"—"}</td>
       <td class="num editable">${inp(p.id,"espece",r?.espece||'')}</td>
       <td class="num editable" title="Montant total bons clients (XOF)">${inp(p.id,"bons",r?.bons||'')}</td>
-      <td class="num editable">${inp(p.id,"spa",r?.spa||'')}</td>
-      <td class="num editable">${inp(p.id,"sae",r?.sae||'')}</td>
       <td class="num editable">${inp(p.id,"retour",r?.retour||'')}</td>
       <td class="num auto">${c.montant?fmt0(c.controle):"—"}</td>
       <td class="num auto">${c.montant?ecCol:"—"}</td>
@@ -593,8 +589,8 @@ function cloPumpTableHtml(produit){
       <th>Pompe</th><th class="num">Départ (A)</th><th class="num">Arrivée (B)</th>
       <th class="num">Cons C=B−A</th><th class="num">PU/L</th>
       <th class="num">Montant vente D</th><th class="num">Espèce (E)</th>
-      <th class="num">Bons (F)</th><th class="num">SPA (G)</th><th class="num">SAE (H)</th>
-      <th class="num">Retour (I)</th><th class="num">Contrôle</th><th class="num">Écart</th>
+      <th class="num">Bons (F)</th>
+      <th class="num">Retour (G)</th><th class="num">Contrôle</th><th class="num">Écart</th>
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td><strong>Totaux</strong></td><td></td><td></td>
@@ -602,8 +598,6 @@ function cloPumpTableHtml(produit){
       <td class="num"><strong>${fmt0(T.montant)}</strong></td>
       <td class="num"><strong>${fmt0(T.espece)}</strong></td>
       <td class="num"><strong>${fmt0(T.bons)}</strong></td>
-      <td class="num"><strong>${fmt0(T.spa)}</strong></td>
-      <td class="num"><strong>${fmt0(T.sae)}</strong></td>
       <td class="num"><strong>${fmt0(T.retour)}</strong></td>
       <td class="num"><strong>${fmt0(T.controle)}</strong></td>
       <td class="num">${tecol}</td>
@@ -736,19 +730,18 @@ function printCloture(){
       <td class="num">${r?.index_arrivee!=null?fmt(r.index_arrivee):"—"}</td>
       <td class="num">${fmt(c.cons)}</td><td class="num">${fmt(c.pu)}</td><td class="num">${fmt0(c.montant)}</td>
       <td class="num">${fmt0(c.espece)}</td><td class="num">${fmt0(c.bons)}</td>
-      <td class="num">${fmt0(c.spa)}</td><td class="num">${fmt0(c.sae)}</td>
       <td class="num">${fmt0(c.retour)}</td><td class="num">${fmt0(c.controle)}</td>
       <td class="num">${c.ecart>0?"+":""}${fmt0(c.ecart)}</td></tr>`;}).join("");
   const pumpSec=(produit,T)=>{const lb=produit==="Super"?"Essence (Super)":"Gasoil";
     return `<h4 style="text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin:14px 0 4px">${lb}</h4>
     <table style="font-size:11px"><thead><tr><th>Pompe</th><th class="num">Départ(A)</th><th class="num">Arrivée(B)</th>
       <th class="num">Cons</th><th class="num">PU</th><th class="num">Montant</th>
-      <th class="num">Espèce</th><th class="num">Bons</th><th class="num">SPA</th><th class="num">SAE</th>
+      <th class="num">Espèce</th><th class="num">Bons</th>
       <th class="num">Retour</th><th class="num">Contrôle</th><th class="num">Écart</th></tr></thead>
     <tbody>${pumpRows(produit)}</tbody>
     <tfoot><tr class="totrow"><td>Totaux</td><td></td><td></td><td class="num">${fmt(T.cons)}</td><td></td>
       <td class="num">${fmt0(T.montant)}</td><td class="num">${fmt0(T.espece)}</td><td class="num">${fmt0(T.bons)}</td>
-      <td class="num">${fmt0(T.spa)}</td><td class="num">${fmt0(T.sae)}</td><td class="num">${fmt0(T.retour)}</td>
+      <td class="num">${fmt0(T.retour)}</td>
       <td class="num">${fmt0(T.controle)}</td><td class="num">${T.ecart>0?"+":""}${fmt0(T.ecart)}</td></tr></tfoot></table>`;};
   const totVol=TG.cons+TS.cons, totMt=TG.montant+TS.montant, totEcart=TG.ecart+TS.ecart;
   const html=`<div class="bon"><div class="head"><div><h3>FICHE DE CLÔTURE</h3>
@@ -761,8 +754,6 @@ function printCloture(){
       <td class="num"><strong>${fmt0(totMt)} XOF</strong></td>
       <td class="num"><strong>${fmt0(TG.espece+TS.espece)}</strong></td>
       <td class="num"><strong>${fmt0(TG.bons+TS.bons)}</strong></td>
-      <td class="num"><strong>${fmt0(TG.spa+TS.spa)}</strong></td>
-      <td class="num"><strong>${fmt0(TG.sae+TS.sae)}</strong></td>
       <td class="num"><strong>${fmt0(TG.retour+TS.retour)}</strong></td>
       <td class="num"><strong>${fmt0(TG.controle+TS.controle)}</strong></td>
       <td class="num" style="color:${Math.abs(totEcart)<1?"var(--essence)":"var(--danger)"}"><strong>${totEcart>0?"+":""}${fmt0(totEcart)}</strong></td>
