@@ -578,116 +578,96 @@ function renderBon(){document.getElementById("bonPreview").innerHTML=bonHtml();}
 function doPrint(){document.getElementById("print-area").innerHTML=bonHtml();window.print();}
 
 /* ========================= CLÔTURE DU JOUR ========================= */
-function dayReleve(pompe_id){ return (data.releves||[]).find(r=>r.pompe_id===pompe_id)||null; }
-function releveCalc(r){
-  const cons=(r&&r.index_arrivee!=null&&r.index_depart!=null)?(+r.index_arrivee - +r.index_depart):0;
-  const pu=r&&r.pu!=null?+r.pu:0;
-  const retour=r&&r.retour!=null?+r.retour:0;
-  const montant=Math.round(cons*pu*100)/100-retour;
-  const espece=r&&r.espece!=null?+r.espece:0;
-  const bons=r&&r.bons!=null?+r.bons:0;
-  const controle=espece+bons;
-  const ecart=Math.round((controle-montant)*100)/100;
-  return {cons,pu,retour,montant,espece,bons,controle,ecart};
+/* Clôture simplifiée : par produit, quantités vendues en BONS (crédit) et en CASH (espèces).
+   Plus d'index de pompe. Le crédit vient des bons saisis ; le cash est saisi ici. */
+function bonsQty(produit){ return dayBons().filter(b=>b.produit===produit).reduce((s,b)=>s+(+b.qte||0),0); }
+function cashQty(produit){
+  const f=currentFiche();
+  const vol=produit==="Super"?(f&&f.vol_super!=null?+f.vol_super:0):(f&&f.vol_gasoil!=null?+f.vol_gasoil:0);
+  const c=(vol||0)-bonsQty(produit); return c>0?c:0;
 }
-function produitTotals(produit){
-  const pompes=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit);
-  let cons=0,montant=0,espece=0,bons=0,retour=0;
-  pompes.forEach(p=>{const r=dayReleve(p.id);const c=releveCalc(r);
-    cons+=c.cons;montant+=c.montant;espece+=c.espece;bons+=c.bons;retour+=c.retour;});
-  const controle=espece+bons;
-  return {cons,montant,espece,bons,retour,controle,ecart:Math.round((controle-montant)*100)/100};
-}
-function cloPumpTableHtml(produit){
-  const pompes=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit);
-  const closed=dayIsClosed(); const canClose=["admin","gerant","chef_piste"].includes(me.role);
-  const rdonly=closed||!canClose;
-  const label=produit==="Super"?"Essence (Super)":"Gasoil";
-  if(!pompes.length) return `<div class="pump-sec"><h3>${label}</h3><div class="empty">Aucune pompe ${esc(label)} configurée. Ajoutez-en dans Paramètres → Pompes.</div></div>`;
-  const inp=(pid,f,v)=>rdonly?`<span class="auto">${v!=null&&v!==''?fmt(+v):"—"}</span>`
-    :`<input class="cell num" data-rp="${esc(pid)}" data-f="${f}" value="${v!=null&&v!==''?v:''}" inputmode="decimal"/>`;
-  const rows=pompes.map(p=>{
-    const r=dayReleve(p.id); const c=releveCalc(r);
-    const ecCol=c.montant&&Math.abs(c.ecart)>0.5
-      ?`<span class="warn-cell">${c.ecart>0?"+":""}${fmt0(c.ecart)}</span>`
-      :`<span class="ok-cell">${fmt0(c.ecart)}</span>`;
-    return `<tr>
-      <td><strong>${esc(p.nom)}</strong></td>
-      <td class="num editable">${inp(p.id,"index_depart",r?.index_depart??'')}</td>
-      <td class="num editable">${inp(p.id,"index_arrivee",r?.index_arrivee??'')}</td>
-      <td class="num auto">${c.cons?fmt(c.cons):"—"}</td>
-      <td class="num editable">${inp(p.id,"pu",r?.pu??'')}</td>
-      <td class="num auto">${c.montant?fmt0(c.montant):"—"}</td>
-      <td class="num editable">${inp(p.id,"espece",r?.espece||'')}</td>
-      <td class="num editable" title="Montant total bons clients (XOF)">${inp(p.id,"bons",r?.bons||'')}</td>
-      <td class="num editable">${inp(p.id,"retour",r?.retour||'')}</td>
-      <td class="num auto">${c.montant?fmt0(c.controle):"—"}</td>
-      <td class="num auto">${c.montant?ecCol:"—"}</td>
-    </tr>`;}).join("");
-  const T=produitTotals(produit);
-  const tecol=T.montant&&Math.abs(T.ecart)>0.5
-    ?`<span class="warn-cell">${T.ecart>0?"+":""}${fmt0(T.ecart)}</span>`
-    :`<span class="ok-cell">${T.montant?fmt0(T.ecart):"—"}</span>`;
-  return `<div class="pump-sec"><h3>${label}</h3><div class="pump-table">
-    <table><thead><tr>
-      <th>Pompe</th><th class="num">Départ (A)</th><th class="num">Arrivée (B)</th>
-      <th class="num">Cons C=B−A</th><th class="num">PU/L</th>
-      <th class="num">Montant vente D</th><th class="num">Espèce (E)</th>
-      <th class="num">Bons (F)</th>
-      <th class="num">Retour (G)</th><th class="num">Contrôle</th><th class="num">Écart</th>
-    </tr></thead>
-    <tbody>${rows}</tbody>
-    <tfoot><tr><td><strong>Totaux</strong></td><td></td><td></td>
-      <td class="num"><strong>${fmt(T.cons)}</strong></td><td></td>
-      <td class="num"><strong>${fmt0(T.montant)}</strong></td>
-      <td class="num"><strong>${fmt0(T.espece)}</strong></td>
-      <td class="num"><strong>${fmt0(T.bons)}</strong></td>
-      <td class="num"><strong>${fmt0(T.retour)}</strong></td>
-      <td class="num"><strong>${fmt0(T.controle)}</strong></td>
-      <td class="num">${tecol}</td>
-    </tr></tfoot></table></div></div>`;
+function clTotals(produit){
+  const pu=currentPrice(produit,ctx.year,ctx.month,ctx.day)||0;
+  const qB=bonsQty(produit), qC=cashQty(produit), qT=qB+qC;
+  return {pu,qB,qC,qT,mB:Math.round(qB*pu),mC:Math.round(qC*pu),mT:Math.round(qT*pu)};
 }
 function statutBadge(st){
   const map={brouillon:"#6b7d74",en_cours:"#0f5132",prete:"#1f8a4c",cloturee:"#6b7d74"};
   const c=map[st]||"#6b7d74"; const lab=STATUT_LABELS[st]||st; const lock=st==="cloturee"?" 🔒":"";
   return `<span class="tag" style="background:#fff;border:1px solid ${c};color:${c}">${esc(lab)}${lock}</span>`;
 }
+function cloProdRowHtml(produit,rdonly){
+  const t=clTotals(produit); const label=produit==="Super"?"Essence (Super)":"Gasoil";
+  const inp=rdonly?`<span class="auto">${t.qC?fmt(t.qC):"—"}</span>`
+    :`<input class="cell num" data-clcash="${produit}" value="${t.qC||''}" inputmode="decimal" placeholder="0"/>`;
+  return `<tr>
+    <td><strong>${label}</strong></td>
+    <td class="num">${fmt(t.qB)} L</td>
+    <td class="num editable">${inp}</td>
+    <td class="num"><strong>${fmt(t.qT)} L</strong></td>
+    <td class="num auto">${t.pu?fmt0(t.pu):"—"}</td>
+    <td class="num">${fmt0(t.mB)}</td>
+    <td class="num">${fmt0(t.mC)}</td>
+    <td class="num"><strong>${fmt0(t.mT)}</strong></td>
+  </tr>`;
+}
 function renderCloture(){
   document.getElementById("clDayInput").value=ctx.day;
   document.getElementById("clDayDate").textContent=dateLabel(ctx.year,ctx.month,ctx.day);
   const f=currentFiche(); const closed=f&&f.statut==="cloturee";
   const canClose=["admin","gerant","chef_piste"].includes(me.role);
+  const rdonly=closed||!canClose;
   document.getElementById("clStatutBadge").innerHTML=statutBadge(f?f.statut:"brouillon");
   const ri=document.getElementById("clReouvertInfo");
   if(f&&f.motif_reouverture){ri.style.display="block";ri.textContent=`Fiche rouverte — motif : ${f.motif_reouverture}`;}
   else ri.style.display="none";
-  document.getElementById("clPumpTables").innerHTML=cloPumpTableHtml("Gasoil")+cloPumpTableHtml("Super");
-  document.querySelectorAll("#clPumpTables input.cell").forEach(el=>el.addEventListener("change",onReleveCell));
-  const TG=produitTotals("Gasoil"), TS=produitTotals("Super");
-  const totCons=TG.cons+TS.cons, totMt=TG.montant+TS.montant;
-  const totEcart=Math.round((TG.ecart+TS.ecart)*100)/100;
-  const ecCol=Math.abs(totEcart)<1?"var(--essence)":Math.abs(totEcart)<=5000?"var(--gasoil-d)":"var(--danger)";
+  const TS=clTotals("Super"), TG=clTotals("Gasoil");
+  const versement=f&&f.versement!=null?+f.versement:0;
+  const cashTheo=TS.mC+TG.mC;
+  const ecart=Math.round(versement-cashTheo);
+  const versInp=rdonly?`<span class="auto">${fmt0(versement)}</span>`
+    :`<input class="cell num" id="clVersement" value="${versement||''}" inputmode="decimal" placeholder="0" style="max-width:170px;border:1px solid var(--line);background:#fffdf6"/>`;
+  document.getElementById("clPumpTables").innerHTML=`<div class="pump-sec">
+    <h3>Ventes du jour — bons (crédit) et espèces (cash)</h3>
+    <div class="pump-table"><table>
+    <thead><tr><th>Produit</th><th class="num">Qté Bons (crédit)</th><th class="num">Qté Cash</th>
+      <th class="num">Qté Totale</th><th class="num">PU/L</th><th class="num">Montant Bons</th>
+      <th class="num">Montant Cash</th><th class="num">Montant Total</th></tr></thead>
+    <tbody>${cloProdRowHtml("Gasoil",rdonly)}${cloProdRowHtml("Super",rdonly)}</tbody>
+    <tfoot><tr><td><strong>Totaux</strong></td>
+      <td class="num"><strong>${fmt(TS.qB+TG.qB)}</strong></td>
+      <td class="num"><strong>${fmt(TS.qC+TG.qC)}</strong></td>
+      <td class="num"><strong>${fmt(TS.qT+TG.qT)}</strong></td><td></td>
+      <td class="num"><strong>${fmt0(TS.mB+TG.mB)}</strong></td>
+      <td class="num"><strong>${fmt0(TS.mC+TG.mC)}</strong></td>
+      <td class="num"><strong>${fmt0(TS.mT+TG.mT)}</strong></td></tr></tfoot>
+    </table></div>
+    <div class="row" style="margin-top:14px;gap:22px;align-items:flex-end">
+      <div><div class="lab" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px">Versement espèces reçu</div>${versInp}</div>
+      <div class="help">Cash théorique : <strong>${fmt0(cashTheo)} XOF</strong></div>
+    </div></div>`;
+  const cv=document.getElementById("clVersement"); if(cv)cv.addEventListener("change",onVersementChange);
+  document.querySelectorAll("[data-clcash]").forEach(el=>el.addEventListener("change",onCashChange));
+  const ecCol=Math.abs(ecart)<1?"var(--essence)":Math.abs(ecart)<=5000?"var(--gasoil-d)":"var(--danger)";
   document.getElementById("clTotKpis").innerHTML=`
-    <div class="kpi super"><div class="lab">Total Essence — volume / montant</div><div class="val">${fmt(TS.cons)} L · ${fmt0(TS.montant)}</div></div>
-    <div class="kpi gasoil"><div class="lab">Total Gasoil — volume / montant</div><div class="val">${fmt(TG.cons)} L · ${fmt0(TG.montant)}</div></div>
-    <div class="kpi tot"><div class="lab">Total journée</div><div class="val">${fmt(totCons)} L · ${fmt0(totMt)} XOF</div></div>
-    <div class="kpi"><div class="lab">Écart total journée</div>
-      <div class="val" style="color:${ecCol}">${totEcart>0?"+":""}${fmt0(totEcart)} XOF</div></div>`;
-  const hasPompes=(data.pompes||[]).some(p=>p.station_id===ctx.station_id);
-  const hasReleves=(data.releves||[]).length>0;
-  const allEcartsOk=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id)
-    .every(p=>{const c=releveCalc(dayReleve(p.id));return !c.montant||Math.abs(c.ecart)<1;});
+    <div class="kpi super"><div class="lab">Essence — qté / montant</div><div class="val">${fmt(TS.qT)} L · ${fmt0(TS.mT)}</div></div>
+    <div class="kpi gasoil"><div class="lab">Gasoil — qté / montant</div><div class="val">${fmt(TG.qT)} L · ${fmt0(TG.mT)}</div></div>
+    <div class="kpi tot"><div class="lab">Total journée</div><div class="val">${fmt(TS.qT+TG.qT)} L · ${fmt0(TS.mT+TG.mT)} XOF</div></div>
+    <div class="kpi"><div class="lab">Écart caisse (versement − cash théo.)</div>
+      <div class="val" style="color:${ecCol}">${ecart>0?"+":""}${fmt0(ecart)} XOF</div></div>`;
+  const totQ=TS.qT+TG.qT, totM=TS.mT+TG.mT;
   const checks=[
-    {ok:hasPompes, t:"Pompes configurées pour cette station"},
-    {ok:hasReleves, t:"Au moins un relevé de pompe saisi"},
-    {ok:totCons>0, t:"Volume total > 0"},
-    {ok:totMt>0, t:"Montant total > 0"},
-    {ok:allEcartsOk, t:"Tous les écarts de pompe = 0 (contrôle OK)"}
+    {ok:totQ>0, t:"Quantité totale vendue > 0"},
+    {ok:totM>0, t:"Montant total > 0 (tarifs Super/Gasoil renseignés)"},
+    {ok:versement>0, t:"Versement espèces renseigné"}
   ];
   document.getElementById("clChecks").innerHTML=checks.map(k=>
     `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
       <span style="font-size:15px">${k.ok?"✅":"⛔"}</span>
-      <span style="color:${k.ok?"var(--ink)":"var(--danger)"}">${esc(k.t)}</span></div>`).join("");
+      <span style="color:${k.ok?"var(--ink)":"var(--danger)"}">${esc(k.t)}</span></div>`).join("")
+    +`<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+      <span style="font-size:15px">${Math.abs(ecart)<1?"✅":"⚠️"}</span>
+      <span class="muted">Écart caisse : ${ecart>0?"+":""}${fmt0(ecart)} XOF (informatif, n'empêche pas la clôture)</span></div>`;
   const allOk=checks.every(k=>k.ok);
   const btnC=document.getElementById("btnCloturer");
   const btnR=document.getElementById("btnReouvrir");
@@ -698,44 +678,10 @@ function renderCloture(){
   const hint=document.getElementById("clHint");
   if(closed){hint.textContent=`Clôturée${f.cloturee_at?" le "+new Date(f.cloturee_at).toLocaleString("fr-FR"):""} — données verrouillées.`;}
   else if(!canClose){hint.textContent="Lecture seule (votre rôle ne permet pas la clôture).";}
-  else if(!allOk){hint.textContent="Complétez les relevés pompes pour activer la clôture.";}
-  else{hint.textContent="Tous les contrôles sont OK : la journée peut être clôturée.";}
+  else if(!allOk){hint.textContent="Renseignez les quantités cash et le versement espèces.";}
+  else{hint.textContent="Les contrôles sont OK : la journée peut être clôturée.";}
 }
-async function onReleveCell(e){
-  const pid=e.target.dataset.rp, field=e.target.dataset.f;
-  if(!pid)return;
-  let v=e.target.value.replace(",",".");
-  v=v===""?0:parseFloat(v); if(isNaN(v))v=0;
-  const r=dayReleve(pid)||{};
-  const fiche=currentFiche();
-  const releve={...r,station_id:ctx.station_id,pompe_id:pid,
-    fiche_id:fiche?fiche.id:null,
-    d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,[field]:v};
-  delete releve.id; // let upsert handle id via onConflict
-  if(r.id)releve.id=r.id;
-  try{
-    await Store.upsertReleve(releve);
-    await reloadReleves();
-    await autoSyncFicheFromReleves();
-    renderCloture();
-  }catch(err){toast("Échec : "+(err.message||err));}
-}
-async function autoSyncFicheFromReleves(){
-  const TG=produitTotals("Gasoil"), TS=produitTotals("Super");
-  const vol_super=TS.cons>0?TS.cons:null;
-  const vol_gasoil=TG.cons>0?TG.cons:null;
-  const versement=(TG.espece+TS.espece)>0?(TG.espece+TS.espece):null;
-  const f=currentFiche();
-  try{
-    if(!f){await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,vol_super,vol_gasoil,versement});}
-    else{await Store.saveFicheVals(f.id,{vol_super,vol_gasoil,versement});}
-    await reloadFiches();
-  }catch(e){}
-}
-async function saveClotureField(field,raw){
-  // kept for compat (called nowhere in new UI, but keep function available)
-  const v=raw===""?null:parseFloat(String(raw).replace(",","."));
-  if(v!==null&&isNaN(v))return;
+async function saveFicheField(field,v){
   if(dayIsClosed()){toast("Fiche clôturée : modification interdite.");return;}
   const f=currentFiche();
   try{
@@ -743,6 +689,16 @@ async function saveClotureField(field,raw){
     else{await Store.saveFicheVals(f.id,{[field]:v});}
     await reloadFiches(); renderCloture();
   }catch(e){toast("Échec : "+(e.message||e));}
+}
+async function onCashChange(e){
+  const produit=e.target.dataset.clcash;
+  let v=e.target.value.replace(",",".");v=v===""?0:parseFloat(v);if(isNaN(v)||v<0)v=0;
+  const vol=bonsQty(produit)+v; // volume total = bons + cash
+  await saveFicheField(produit==="Super"?"vol_super":"vol_gasoil",vol);
+}
+async function onVersementChange(e){
+  let v=e.target.value.replace(",",".");v=v===""?0:parseFloat(v);if(isNaN(v)||v<0)v=0;
+  await saveFicheField("versement",v);
 }
 async function doCloturer(){
   let f=currentFiche();
@@ -767,41 +723,32 @@ async function doRouvrir(){
   catch(e){toast("Réouverture refusée : "+(e.message||e));}
 }
 function printCloture(){
-  const TG=produitTotals("Gasoil"), TS=produitTotals("Super"); const f=currentFiche();
-  const pumpRows=produit=>(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit).map(p=>{
-    const r=dayReleve(p.id);const c=releveCalc(r);
-    return `<tr><td>${esc(p.nom)}</td><td class="num">${r?.index_depart!=null?fmt(r.index_depart):"—"}</td>
-      <td class="num">${r?.index_arrivee!=null?fmt(r.index_arrivee):"—"}</td>
-      <td class="num">${fmt(c.cons)}</td><td class="num">${fmt(c.pu)}</td><td class="num">${fmt0(c.montant)}</td>
-      <td class="num">${fmt0(c.espece)}</td><td class="num">${fmt0(c.bons)}</td>
-      <td class="num">${fmt0(c.retour)}</td><td class="num">${fmt0(c.controle)}</td>
-      <td class="num">${c.ecart>0?"+":""}${fmt0(c.ecart)}</td></tr>`;}).join("");
-  const pumpSec=(produit,T)=>{const lb=produit==="Super"?"Essence (Super)":"Gasoil";
-    return `<h4 style="text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin:14px 0 4px">${lb}</h4>
-    <table style="font-size:11px"><thead><tr><th>Pompe</th><th class="num">Départ(A)</th><th class="num">Arrivée(B)</th>
-      <th class="num">Cons</th><th class="num">PU</th><th class="num">Montant</th>
-      <th class="num">Espèce</th><th class="num">Bons</th>
-      <th class="num">Retour</th><th class="num">Contrôle</th><th class="num">Écart</th></tr></thead>
-    <tbody>${pumpRows(produit)}</tbody>
-    <tfoot><tr class="totrow"><td>Totaux</td><td></td><td></td><td class="num">${fmt(T.cons)}</td><td></td>
-      <td class="num">${fmt0(T.montant)}</td><td class="num">${fmt0(T.espece)}</td><td class="num">${fmt0(T.bons)}</td>
-      <td class="num">${fmt0(T.retour)}</td>
-      <td class="num">${fmt0(T.controle)}</td><td class="num">${T.ecart>0?"+":""}${fmt0(T.ecart)}</td></tr></tfoot></table>`;};
-  const totVol=TG.cons+TS.cons, totMt=TG.montant+TS.montant, totEcart=TG.ecart+TS.ecart;
+  const TS=clTotals("Super"), TG=clTotals("Gasoil"); const f=currentFiche();
+  const versement=f&&f.versement!=null?+f.versement:0;
+  const cashTheo=TS.mC+TG.mC; const ecart=Math.round(versement-cashTheo);
+  const row=(lb,t)=>`<tr><td>${lb}</td><td class="num">${fmt(t.qB)}</td><td class="num">${fmt(t.qC)}</td>
+    <td class="num">${fmt(t.qT)}</td><td class="num">${fmt0(t.pu)}</td><td class="num">${fmt0(t.mB)}</td>
+    <td class="num">${fmt0(t.mC)}</td><td class="num">${fmt0(t.mT)}</td></tr>`;
   const html=`<div class="bon"><div class="head"><div><h3>FICHE DE CLÔTURE</h3>
     <div>${esc(stationName(ctx.station_id)||"—")}</div></div>
     <div class="meta">${dateLabel(ctx.year,ctx.month,ctx.day)}<br>${STATUT_LABELS[f?f.statut:""]||""}</div></div>
-    ${pumpSec("Gasoil",TG)}${pumpSec("Super",TS)}
-    <table style="margin-top:14px"><tfoot><tr class="totrow">
-      <td colspan="3"><strong>TOTAL JOURNÉE</strong></td>
-      <td class="num"><strong>${fmt(totVol)} L</strong></td><td></td>
-      <td class="num"><strong>${fmt0(totMt)} XOF</strong></td>
-      <td class="num"><strong>${fmt0(TG.espece+TS.espece)}</strong></td>
-      <td class="num"><strong>${fmt0(TG.bons+TS.bons)}</strong></td>
-      <td class="num"><strong>${fmt0(TG.retour+TS.retour)}</strong></td>
-      <td class="num"><strong>${fmt0(TG.controle+TS.controle)}</strong></td>
-      <td class="num" style="color:${Math.abs(totEcart)<1?"var(--essence)":"var(--danger)"}"><strong>${totEcart>0?"+":""}${fmt0(totEcart)}</strong></td>
-    </tr></tfoot></table>
+    <table style="font-size:12px"><thead><tr><th>Produit</th><th class="num">Qté Bons</th><th class="num">Qté Cash</th>
+      <th class="num">Qté Tot.</th><th class="num">PU</th><th class="num">Mt Bons</th><th class="num">Mt Cash</th><th class="num">Mt Total</th></tr></thead>
+    <tbody>${row("Gasoil",TG)}${row("Essence (Super)",TS)}</tbody>
+    <tfoot><tr class="totrow"><td>TOTAL</td><td class="num">${fmt(TS.qB+TG.qB)}</td><td class="num">${fmt(TS.qC+TG.qC)}</td>
+      <td class="num">${fmt(TS.qT+TG.qT)}</td><td></td><td class="num">${fmt0(TS.mB+TG.mB)}</td>
+      <td class="num">${fmt0(TS.mC+TG.mC)}</td><td class="num">${fmt0(TS.mT+TG.mT)}</td></tr></tfoot></table>
+    <div class="grid2" style="margin-top:14px">
+      <div class="box"><h4>Recouvrement</h4><table><tbody>
+        <tr><td>Montant bons (crédit)</td><td class="num">${fmt0(TS.mB+TG.mB)} XOF</td></tr>
+        <tr><td>Cash théorique</td><td class="num">${fmt0(cashTheo)} XOF</td></tr>
+        <tr><td>Versement espèces reçu</td><td class="num">${fmt0(versement)} XOF</td></tr>
+        <tr><td><strong>Écart caisse</strong></td><td class="num"><strong>${ecart>0?"+":""}${fmt0(ecart)} XOF</strong></td></tr>
+      </tbody></table></div>
+      <div class="box"><h4>Totaux journée</h4><table><tbody>
+        <tr><td>Volume total</td><td class="num">${fmt(TS.qT+TG.qT)} L</td></tr>
+        <tr><td>Chiffre d'affaires</td><td class="num">${fmt0(TS.mT+TG.mT)} XOF</td></tr>
+      </tbody></table></div></div>
     ${f&&f.cloturee_at?`<p class="help">Clôturée le ${new Date(f.cloturee_at).toLocaleString("fr-FR")}</p>`:""}
     <div style="display:flex;justify-content:space-between;margin-top:28px;font-size:12.5px">
       <div style="border-top:1px solid #000;padding-top:6px;width:30%">Le Comptable</div>
@@ -1085,7 +1032,7 @@ function showTab(tab){
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+tab));
   if(tab==="bon")renderBon();if(tab==="suivi")renderSuivi();if(tab==="export")renderExport();
   if(tab==="param")renderParam();if(tab==="saisie")renderSaisie();if(tab==="ia")renderIA();
-  if(tab==="cloture"){reloadReleves().then(()=>renderCloture());}
+  if(tab==="cloture"){renderCloture();}
 }
 function clampDay(){const dim=daysInMonth(ctx.year,ctx.month);if(ctx.day>dim)ctx.day=dim;if(ctx.day<1)ctx.day=1;}
 function refreshActive(){fillCtx();showTab(activeTab());}
@@ -1210,9 +1157,9 @@ function wireApp(){
   document.getElementById("addRow").onclick=addRow;
   document.getElementById("btnPrint").onclick=doPrint;
   // Clôture du jour
-  document.getElementById("clPrevDay").onclick=async()=>{if(ctx.day>1){ctx.day--;await reloadReleves();renderCloture();}};
-  document.getElementById("clNextDay").onclick=async()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;await reloadReleves();renderCloture();}};
-  document.getElementById("clDayInput").onchange=async e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);await reloadReleves();renderCloture();};
+  document.getElementById("clPrevDay").onclick=()=>{if(ctx.day>1){ctx.day--;renderCloture();}};
+  document.getElementById("clNextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;renderCloture();}};
+  document.getElementById("clDayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);renderCloture();};
   document.getElementById("btnCloturer").onclick=doCloturer;
   document.getElementById("btnReouvrir").onclick=doRouvrir;
   document.getElementById("btnPrintCloture").onclick=printCloture;
