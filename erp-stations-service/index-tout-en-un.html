@@ -89,6 +89,10 @@
   .banner{background:#fff4d6;border:1px solid #e7cf8a;color:#6b531a;padding:10px 14px;font-size:13px;text-align:center}
   .sync{font-size:12px;color:#9fb3a8;display:flex;align-items:center;gap:6px}
   .dot{width:8px;height:8px;border-radius:50%;background:#3fb56a;box-shadow:0 0 0 3px rgba(63,181,106,.25)}
+  .warn-cell{color:var(--danger);font-weight:600}.ok-cell{color:var(--essence);font-weight:600}
+  .pump-table{overflow-x:auto;-webkit-overflow-scrolling:touch}.pump-table table{min-width:1100px}
+  .pump-sec{margin-bottom:18px}
+  .pump-sec h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
 </style>
 </head>
 <body>
@@ -159,27 +163,8 @@
         <span class="right" id="clStatutBadge"></span>
       </div>
       <div id="clReouvertInfo" class="banner" style="display:none;background:#fff4d6;border-color:#e7cf8a;color:#6b531a"></div>
-      <div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap">
-        <div style="flex:1;min-width:280px">
-          <h2 style="font-size:15px;margin-bottom:8px">Index pompes — volumes vendus</h2>
-          <div class="sub">Litres relevés au compteur des pompes pour la journée.</div>
-          <div class="row" style="margin-bottom:10px">
-            <div style="flex:1"><label class="help">Super (L)</label>
-              <input id="clVolSuper" class="cell num" inputmode="decimal" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:right"/></div>
-            <div style="flex:1"><label class="help">Gasoil (L)</label>
-              <input id="clVolGasoil" class="cell num" inputmode="decimal" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:right"/></div>
-          </div>
-          <h2 style="font-size:15px;margin:14px 0 8px">Encaissement</h2>
-          <div class="sub">Espèces réellement remises par le pompiste.</div>
-          <div><label class="help">Versement espèces (XOF)</label>
-            <input id="clVersement" class="cell num" inputmode="decimal" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:right"/></div>
-        </div>
-        <div style="flex:1;min-width:280px">
-          <h2 style="font-size:15px;margin-bottom:8px">Récapitulatif & écart de caisse</h2>
-          <div class="kpis" id="clKpis" style="grid-template-columns:1fr 1fr"></div>
-          <div id="clEcartBox" style="margin-top:6px"></div>
-        </div>
-      </div>
+      <div id="clPumpTables"></div>
+      <div class="kpis" id="clTotKpis" style="margin-top:14px"></div>
       <div class="panel" style="margin:16px 0 0;background:#fbfaf4">
         <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:8px">Pré-contrôles avant clôture</h3>
         <div id="clChecks"></div>
@@ -265,6 +250,14 @@
           <span id="importStationRes" class="help" style="margin-left:10px"></span>
         </div>
       </details></div>
+
+    <div class="panel"><h2>Pompes</h2><div class="sub">Une ligne par pompe physique de la station courante. Le nom (P1A, P2B…) apparaît dans la fiche de clôture.</div>
+      <table><thead><tr><th>Nom</th><th>Produit</th><th style="width:40px"></th></tr></thead><tbody id="pompeBody"></tbody></table>
+      <div class="row" style="margin-top:10px">
+        <input id="newPompeNom" class="cell" style="max-width:130px;border:1px solid var(--line)" placeholder="Ex: P1A"/>
+        <select id="newPompeProd" class="cell" style="border:1px solid var(--line)"><option>Gasoil</option><option>Super</option></select>
+        <button class="btn small" id="addPompe">Ajouter</button>
+      </div></div>
 
     <div class="panel"><h2>Clients</h2><div class="sub">N° compte, nom, compte principal (compte collectif, ex. 411000).</div>
       <table><thead><tr><th>N° compte</th><th>Nom client</th><th>Compte principal</th><th style="width:40px"></th></tr></thead><tbody id="clientBody"></tbody></table>
@@ -368,14 +361,19 @@ const Store = {
   async delBon(id){ const {error}=await sb.from("bons").delete().eq("id",id); if(error)throw error; },
   async updateProfile(id,patch){ const {error}=await sb.from("profiles").update(patch).eq("id",id); if(error)throw error; },
   async updateProfileStations(id,station_ids){ const {error}=await sb.from("profiles").update({station_ids,station_id:station_ids[0]||null}).eq("id",id); if(error)throw error; },
-  channel(name,table,cb){ return sb.channel(name).on("postgres_changes",{event:"*",schema:"public",table},cb).subscribe(); }
+  channel(name,table,cb){ return sb.channel(name).on("postgres_changes",{event:"*",schema:"public",table},cb).subscribe(); },
+  async listPompes(sid){ const {data,error}=await sb.from("pompes").select("*").eq("station_id",sid).order("produit").order("nom"); if(error)throw error; return data; },
+  async addPompe(nom,produit,station_id){ const {error}=await sb.from("pompes").insert({nom,produit,station_id}); if(error)throw error; },
+  async delPompe(id){ const {error}=await sb.from("pompes").delete().eq("id",id); if(error)throw error; },
+  async listReleves(scope){ const {data,error}=await sb.from("releves_pompes").select("*").eq("station_id",scope.station_id).eq("d_year",scope.year).eq("d_month",scope.month).eq("d_day",scope.day); if(error)throw error; return data; },
+  async upsertReleve(r){ const {error}=await sb.from("releves_pompes").upsert(r,{onConflict:"pompe_id,d_year,d_month,d_day"}); if(error)throw error; },
 };
 
 /* ========================= ÉTAT ========================= */
 const MONTHS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const WD=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 let me={id:"",email:"",role:"gerant",station_ids:[],station_id:null};
-let data={stations:[],clients:[],bons:[],profiles:[],tarifs:[],fiches:[]};
+let data={stations:[],clients:[],bons:[],profiles:[],tarifs:[],fiches:[],pompes:[],releves:[]};
 let ctx={station_id:"",year:new Date().getFullYear(),month:new Date().getMonth()+1,day:new Date().getDate()};
 let expScope="month";
 const uuid=()=> (crypto.randomUUID? crypto.randomUUID() : (Date.now().toString(36)+Math.random().toString(36).slice(2)));
@@ -539,159 +537,245 @@ function renderBon(){document.getElementById("bonPreview").innerHTML=bonHtml();}
 function doPrint(){document.getElementById("print-area").innerHTML=bonHtml();window.print();}
 
 /* ========================= CLÔTURE DU JOUR ========================= */
-// Volumes à crédit (bons avec n° de bon) par produit, pour la journée
-function creditVolumes(){
-  let cS=0,cG=0,mS=0,mG=0;
-  dayBons().filter(b=>b.bl).forEach(b=>{const q=+b.qte||0,mt=q*(+b.pu||0);
-    if(b.produit==="Super"){cS+=q;mS+=mt;}else if(b.produit==="Gasoil"){cG+=q;mG+=mt;}});
-  return {cS,cG,mCredit:mS+mG};
+function dayReleve(pompe_id){ return (data.releves||[]).find(r=>r.pompe_id===pompe_id)||null; }
+function releveCalc(r){
+  const cons=(r&&r.index_arrivee!=null&&r.index_depart!=null)?(+r.index_arrivee - +r.index_depart):0;
+  const pu=r&&r.pu!=null?+r.pu:0;
+  const retour=r&&r.retour!=null?+r.retour:0;
+  const montant=Math.round(cons*pu*100)/100-retour;
+  const espece=r&&r.espece!=null?+r.espece:0;
+  const bons=r&&r.bons!=null?+r.bons:0;
+  const spa=r&&r.spa!=null?+r.spa:0;
+  const sae=r&&r.sae!=null?+r.sae:0;
+  const controle=espece+bons+spa+sae;
+  const ecart=Math.round((controle-montant)*100)/100;
+  return {cons,pu,retour,montant,espece,bons,spa,sae,controle,ecart};
 }
-function clotureCalc(){
-  const f=currentFiche();
-  const volS=f&&f.vol_super!=null?+f.vol_super:null;
-  const volG=f&&f.vol_gasoil!=null?+f.vol_gasoil:null;
-  const vers=f&&f.versement!=null?+f.versement:null;
-  const {cS,cG,mCredit}=creditVolumes();
-  const pS=currentPrice("Super",ctx.year,ctx.month,ctx.day);
-  const pG=currentPrice("Gasoil",ctx.year,ctx.month,ctx.day);
-  const cashVolS=(volS!=null?volS:0)-cS;
-  const cashVolG=(volG!=null?volG:0)-cG;
-  const cashTheo=(cashVolS*(pS||0))+(cashVolG*(pG||0));
-  const ecart=(vers!=null)?(vers-cashTheo):null;
-  return {f,volS,volG,vers,cS,cG,mCredit,pS,pG,cashVolS,cashVolG,cashTheo,ecart};
+function produitTotals(produit){
+  const pompes=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit);
+  let cons=0,montant=0,espece=0,bons=0,spa=0,sae=0,retour=0;
+  pompes.forEach(p=>{const r=dayReleve(p.id);const c=releveCalc(r);
+    cons+=c.cons;montant+=c.montant;espece+=c.espece;bons+=c.bons;spa+=c.spa;sae+=c.sae;retour+=c.retour;});
+  const controle=espece+bons+spa+sae;
+  return {cons,montant,espece,bons,spa,sae,retour,controle,ecart:Math.round((controle-montant)*100)/100};
+}
+function cloPumpTableHtml(produit){
+  const pompes=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit);
+  const closed=dayIsClosed(); const canClose=["admin","gerant","chef_piste"].includes(me.role);
+  const rdonly=closed||!canClose;
+  const label=produit==="Super"?"Essence (Super)":"Gasoil";
+  if(!pompes.length) return `<div class="pump-sec"><h3>${label}</h3><div class="empty">Aucune pompe ${esc(label)} configurée. Ajoutez-en dans Paramètres → Pompes.</div></div>`;
+  const inp=(pid,f,v)=>rdonly?`<span class="auto">${v!=null&&v!==''?fmt(+v):"—"}</span>`
+    :`<input class="cell num" data-rp="${esc(pid)}" data-f="${f}" value="${v!=null&&v!==''?v:''}" inputmode="decimal"/>`;
+  const rows=pompes.map(p=>{
+    const r=dayReleve(p.id); const c=releveCalc(r);
+    const ecCol=c.montant&&Math.abs(c.ecart)>0.5
+      ?`<span class="warn-cell">${c.ecart>0?"+":""}${fmt0(c.ecart)}</span>`
+      :`<span class="ok-cell">${fmt0(c.ecart)}</span>`;
+    return `<tr>
+      <td><strong>${esc(p.nom)}</strong></td>
+      <td class="num editable">${inp(p.id,"index_depart",r?.index_depart??'')}</td>
+      <td class="num editable">${inp(p.id,"index_arrivee",r?.index_arrivee??'')}</td>
+      <td class="num auto">${c.cons?fmt(c.cons):"—"}</td>
+      <td class="num editable">${inp(p.id,"pu",r?.pu??'')}</td>
+      <td class="num auto">${c.montant?fmt0(c.montant):"—"}</td>
+      <td class="num editable">${inp(p.id,"espece",r?.espece||'')}</td>
+      <td class="num editable" title="Montant total bons clients (XOF)">${inp(p.id,"bons",r?.bons||'')}</td>
+      <td class="num editable">${inp(p.id,"spa",r?.spa||'')}</td>
+      <td class="num editable">${inp(p.id,"sae",r?.sae||'')}</td>
+      <td class="num editable">${inp(p.id,"retour",r?.retour||'')}</td>
+      <td class="num auto">${c.montant?fmt0(c.controle):"—"}</td>
+      <td class="num auto">${c.montant?ecCol:"—"}</td>
+    </tr>`;}).join("");
+  const T=produitTotals(produit);
+  const tecol=T.montant&&Math.abs(T.ecart)>0.5
+    ?`<span class="warn-cell">${T.ecart>0?"+":""}${fmt0(T.ecart)}</span>`
+    :`<span class="ok-cell">${T.montant?fmt0(T.ecart):"—"}</span>`;
+  return `<div class="pump-sec"><h3>${label}</h3><div class="pump-table">
+    <table><thead><tr>
+      <th>Pompe</th><th class="num">Départ (A)</th><th class="num">Arrivée (B)</th>
+      <th class="num">Cons C=B−A</th><th class="num">PU/L</th>
+      <th class="num">Montant vente D</th><th class="num">Espèce (E)</th>
+      <th class="num">Bons (F)</th><th class="num">SPA (G)</th><th class="num">SAE (H)</th>
+      <th class="num">Retour (I)</th><th class="num">Contrôle</th><th class="num">Écart</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td><strong>Totaux</strong></td><td></td><td></td>
+      <td class="num"><strong>${fmt(T.cons)}</strong></td><td></td>
+      <td class="num"><strong>${fmt0(T.montant)}</strong></td>
+      <td class="num"><strong>${fmt0(T.espece)}</strong></td>
+      <td class="num"><strong>${fmt0(T.bons)}</strong></td>
+      <td class="num"><strong>${fmt0(T.spa)}</strong></td>
+      <td class="num"><strong>${fmt0(T.sae)}</strong></td>
+      <td class="num"><strong>${fmt0(T.retour)}</strong></td>
+      <td class="num"><strong>${fmt0(T.controle)}</strong></td>
+      <td class="num">${tecol}</td>
+    </tr></tfoot></table></div></div>`;
 }
 function statutBadge(st){
   const map={brouillon:"#6b7d74",en_cours:"#0f5132",prete:"#1f8a4c",cloturee:"#6b7d74"};
-  const c=map[st]||"#6b7d74";
-  const lab=STATUT_LABELS[st]||st;
-  const lock=st==="cloturee"?" 🔒":"";
+  const c=map[st]||"#6b7d74"; const lab=STATUT_LABELS[st]||st; const lock=st==="cloturee"?" 🔒":"";
   return `<span class="tag" style="background:#fff;border:1px solid ${c};color:${c}">${esc(lab)}${lock}</span>`;
 }
 function renderCloture(){
   document.getElementById("clDayInput").value=ctx.day;
   document.getElementById("clDayDate").textContent=dateLabel(ctx.year,ctx.month,ctx.day);
-  const c=clotureCalc();
-  const closed=c.f&&c.f.statut==="cloturee";
+  const f=currentFiche(); const closed=f&&f.statut==="cloturee";
   const canClose=["admin","gerant","chef_piste"].includes(me.role);
-  document.getElementById("clStatutBadge").innerHTML=statutBadge(c.f?c.f.statut:"brouillon");
-
-  // info réouverture
+  document.getElementById("clStatutBadge").innerHTML=statutBadge(f?f.statut:"brouillon");
   const ri=document.getElementById("clReouvertInfo");
-  if(c.f&&c.f.motif_reouverture){ ri.style.display="block";
-    ri.textContent=`Fiche rouverte — motif : ${c.f.motif_reouverture}`; }
+  if(f&&f.motif_reouverture){ri.style.display="block";ri.textContent=`Fiche rouverte — motif : ${f.motif_reouverture}`;}
   else ri.style.display="none";
-
-  // champs de saisie
-  const vS=document.getElementById("clVolSuper"), vG=document.getElementById("clVolGasoil"), vV=document.getElementById("clVersement");
-  if(document.activeElement!==vS) vS.value=c.volS!=null?c.volS:"";
-  if(document.activeElement!==vG) vG.value=c.volG!=null?c.volG:"";
-  if(document.activeElement!==vV) vV.value=c.vers!=null?c.vers:"";
-  [vS,vG,vV].forEach(el=>el.disabled=closed||!canClose);
-
-  // KPIs récap
-  document.getElementById("clKpis").innerHTML=`
-    <div class="kpi super"><div class="lab">Cash Super (vol − bons)</div><div class="val">${fmt(c.cashVolS)} L</div></div>
-    <div class="kpi gasoil"><div class="lab">Cash Gasoil (vol − bons)</div><div class="val">${fmt(c.cashVolG)} L</div></div>
-    <div class="kpi tot"><div class="lab">Cash théorique attendu</div><div class="val">${fmt0(c.cashTheo)}</div></div>
-    <div class="kpi"><div class="lab">Total crédits clients</div><div class="val">${fmt0(c.mCredit)}</div></div>`;
-
-  // écart de caisse (couleur)
-  const eb=document.getElementById("clEcartBox");
-  if(c.ecart==null){ eb.innerHTML=`<div class="banner">Saisissez le versement pour calculer l'écart de caisse.</div>`; }
-  else{
-    const a=Math.abs(c.ecart);
-    let col,lab;
-    if(a<1){col="var(--essence)";lab="Caisse équilibrée";}
-    else if(a<=5000){col="var(--gasoil-d)";lab=c.ecart>0?"Excédent modéré":"Manquant modéré";}
-    else{col="var(--danger)";lab=c.ecart>0?"Excédent anormal":"Manquant anormal";}
-    eb.innerHTML=`<div class="kpi" style="border-top:3px solid ${col}">
-      <div class="lab">Écart de caisse (versé − attendu)</div>
-      <div class="val" style="color:${col}">${c.ecart>0?"+":""}${fmt0(c.ecart)} XOF</div>
-      <div class="help" style="color:${col};font-weight:600">${lab}</div></div>`;
-  }
-
-  // pré-contrôles
+  document.getElementById("clPumpTables").innerHTML=cloPumpTableHtml("Gasoil")+cloPumpTableHtml("Super");
+  document.querySelectorAll("#clPumpTables input.cell").forEach(el=>el.addEventListener("change",onReleveCell));
+  const TG=produitTotals("Gasoil"), TS=produitTotals("Super");
+  const totCons=TG.cons+TS.cons, totMt=TG.montant+TS.montant;
+  const totEcart=Math.round((TG.ecart+TS.ecart)*100)/100;
+  const ecCol=Math.abs(totEcart)<1?"var(--essence)":Math.abs(totEcart)<=5000?"var(--gasoil-d)":"var(--danger)";
+  document.getElementById("clTotKpis").innerHTML=`
+    <div class="kpi super"><div class="lab">Total Essence — volume / montant</div><div class="val">${fmt(TS.cons)} L · ${fmt0(TS.montant)}</div></div>
+    <div class="kpi gasoil"><div class="lab">Total Gasoil — volume / montant</div><div class="val">${fmt(TG.cons)} L · ${fmt0(TG.montant)}</div></div>
+    <div class="kpi tot"><div class="lab">Total journée</div><div class="val">${fmt(totCons)} L · ${fmt0(totMt)} XOF</div></div>
+    <div class="kpi"><div class="lab">Écart total journée</div>
+      <div class="val" style="color:${ecCol}">${totEcart>0?"+":""}${fmt0(totEcart)} XOF</div></div>`;
+  const hasPompes=(data.pompes||[]).some(p=>p.station_id===ctx.station_id);
+  const hasReleves=(data.releves||[]).length>0;
+  const allEcartsOk=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id)
+    .every(p=>{const c=releveCalc(dayReleve(p.id));return !c.montant||Math.abs(c.ecart)<1;});
   const checks=[
-    {ok:c.volS!=null&&c.volG!=null, t:"Volumes Super et Gasoil renseignés"},
-    {ok:(c.volS||0)>=0&&(c.volG||0)>=0, t:"Volumes positifs"},
-    {ok:c.vers!=null, t:"Versement espèces renseigné"},
-    {ok:c.cashVolS>=0&&c.cashVolG>=0, t:"Volume vendu ≥ volume des bons à crédit"},
-    {ok:(!c.cS||c.pS!=null)&&(!c.cG||c.pG!=null), t:"Tarif du jour disponible pour les produits vendus"}
+    {ok:hasPompes, t:"Pompes configurées pour cette station"},
+    {ok:hasReleves, t:"Au moins un relevé de pompe saisi"},
+    {ok:totCons>0, t:"Volume total > 0"},
+    {ok:totMt>0, t:"Montant total > 0"},
+    {ok:allEcartsOk, t:"Tous les écarts de pompe = 0 (contrôle OK)"}
   ];
   document.getElementById("clChecks").innerHTML=checks.map(k=>
     `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
       <span style="font-size:15px">${k.ok?"✅":"⛔"}</span>
       <span style="color:${k.ok?"var(--ink)":"var(--danger)"}">${esc(k.t)}</span></div>`).join("");
   const allOk=checks.every(k=>k.ok);
-
-  // boutons
   const btnC=document.getElementById("btnCloturer");
   const btnR=document.getElementById("btnReouvrir");
   const btnP=document.getElementById("btnPrintCloture");
-  btnC.style.display=(!closed&&canClose)?"":"none";
-  btnC.disabled=!allOk;
+  btnC.style.display=(!closed&&canClose)?"":"none"; btnC.disabled=!allOk;
   btnR.style.display=(closed&&me.role==="admin")?"":"none";
   btnP.style.display=closed?"":"none";
   const hint=document.getElementById("clHint");
-  if(closed){ hint.textContent=`Clôturée${c.f.cloturee_at?" le "+new Date(c.f.cloturee_at).toLocaleString("fr-FR"):""} — données verrouillées.`; }
-  else if(!canClose){ hint.textContent="Lecture seule (votre rôle ne permet pas la clôture)."; }
-  else if(!allOk){ hint.textContent="Complétez les pré-contrôles pour activer la clôture."; }
-  else { hint.textContent="Tous les contrôles sont OK : la journée peut être clôturée."; }
+  if(closed){hint.textContent=`Clôturée${f.cloturee_at?" le "+new Date(f.cloturee_at).toLocaleString("fr-FR"):""} — données verrouillées.`;}
+  else if(!canClose){hint.textContent="Lecture seule (votre rôle ne permet pas la clôture).";}
+  else if(!allOk){hint.textContent="Complétez les relevés pompes pour activer la clôture.";}
+  else{hint.textContent="Tous les contrôles sont OK : la journée peut être clôturée.";}
+}
+async function onReleveCell(e){
+  const pid=e.target.dataset.rp, field=e.target.dataset.f;
+  if(!pid)return;
+  let v=e.target.value.replace(",",".");
+  v=v===""?0:parseFloat(v); if(isNaN(v))v=0;
+  const r=dayReleve(pid)||{};
+  const fiche=currentFiche();
+  const releve={...r,station_id:ctx.station_id,pompe_id:pid,
+    fiche_id:fiche?fiche.id:null,
+    d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,[field]:v};
+  delete releve.id; // let upsert handle id via onConflict
+  if(r.id)releve.id=r.id;
+  try{
+    await Store.upsertReleve(releve);
+    await reloadReleves();
+    await autoSyncFicheFromReleves();
+    renderCloture();
+  }catch(err){toast("Échec : "+(err.message||err));}
+}
+async function autoSyncFicheFromReleves(){
+  const TG=produitTotals("Gasoil"), TS=produitTotals("Super");
+  const vol_super=TS.cons>0?TS.cons:null;
+  const vol_gasoil=TG.cons>0?TG.cons:null;
+  const versement=(TG.espece+TS.espece)>0?(TG.espece+TS.espece):null;
+  const f=currentFiche();
+  try{
+    if(!f){await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,vol_super,vol_gasoil,versement});}
+    else{await Store.saveFicheVals(f.id,{vol_super,vol_gasoil,versement});}
+    await reloadFiches();
+  }catch(e){}
 }
 async function saveClotureField(field,raw){
+  // kept for compat (called nowhere in new UI, but keep function available)
   const v=raw===""?null:parseFloat(String(raw).replace(",","."));
   if(v!==null&&isNaN(v))return;
   if(dayIsClosed()){toast("Fiche clôturée : modification interdite.");return;}
   const f=currentFiche();
   try{
-    if(!f){ await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,[field]:v}); }
-    else{ await Store.saveFicheVals(f.id,{[field]:v}); }
+    if(!f){await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day,[field]:v});}
+    else{await Store.saveFicheVals(f.id,{[field]:v});}
     await reloadFiches(); renderCloture();
-  }catch(e){ toast("Échec : "+(e.message||e)); }
+  }catch(e){toast("Échec : "+(e.message||e));}
 }
 async function doCloturer(){
   let f=currentFiche();
-  if(!f){ // créer la fiche d'abord (cas rare : aucun bon, valeurs déjà saisies)
-    try{ await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day}); await reloadFiches(); f=currentFiche(); }
-    catch(e){ toast("Échec : "+e.message); return; }
+  if(!f){
+    try{await Store.upsertFiche({station_id:ctx.station_id,d_year:ctx.year,d_month:ctx.month,d_day:ctx.day});await reloadFiches();f=currentFiche();}
+    catch(e){toast("Échec : "+e.message);return;}
   }
-  if(!f){ toast("Impossible de créer la fiche du jour."); return; }
-  if(!confirm("Clôturer définitivement cette journée ? Les données seront verrouillées.")) return;
+  if(!f){toast("Impossible de créer la fiche du jour.");return;}
+  if(!confirm("Clôturer définitivement cette journée ? Les données seront verrouillées."))return;
   try{
     const r=await Store.cloturer(f.id);
-    await reloadFiches(); renderCloture();
+    await reloadFiches();renderCloture();
     if(activeTab()==="saisie")renderSaisie();
-    toast(`Journée clôturée — écart de caisse : ${r&&r.ecart>0?"+":""}${fmt0(r?r.ecart:0)} XOF`);
-  }catch(e){ toast("Clôture refusée : "+(e.message||e)); }
+    toast(`Journée clôturée — écart : ${r&&r.ecart>0?"+":""}${fmt0(r?r.ecart:0)} XOF`);
+  }catch(e){toast("Clôture refusée : "+(e.message||e));}
 }
 async function doRouvrir(){
-  const f=currentFiche(); if(!f)return;
+  const f=currentFiche();if(!f)return;
   const motif=prompt("Motif de réouverture (obligatoire) :");
-  if(motif==null)return;
-  if(!motif.trim()){toast("Motif obligatoire.");return;}
-  try{
-    await Store.rouvrir(f.id,motif.trim());
-    await reloadFiches(); renderCloture();
-    if(activeTab()==="saisie")renderSaisie();
-    toast("Fiche rouverte.");
-  }catch(e){ toast("Réouverture refusée : "+(e.message||e)); }
+  if(motif==null)return;if(!motif.trim()){toast("Motif obligatoire.");return;}
+  try{await Store.rouvrir(f.id,motif.trim());await reloadFiches();renderCloture();if(activeTab()==="saisie")renderSaisie();toast("Fiche rouverte.");}
+  catch(e){toast("Réouverture refusée : "+(e.message||e));}
 }
 function printCloture(){
-  const c=clotureCalc(); const f=c.f;
-  const html=`<div class="bon"><div class="head"><div><h3>RÉCAPITULATIF DE CLÔTURE</h3>
+  const TG=produitTotals("Gasoil"), TS=produitTotals("Super"); const f=currentFiche();
+  const pumpRows=produit=>(data.pompes||[]).filter(p=>p.station_id===ctx.station_id&&p.produit===produit).map(p=>{
+    const r=dayReleve(p.id);const c=releveCalc(r);
+    return `<tr><td>${esc(p.nom)}</td><td class="num">${r?.index_depart!=null?fmt(r.index_depart):"—"}</td>
+      <td class="num">${r?.index_arrivee!=null?fmt(r.index_arrivee):"—"}</td>
+      <td class="num">${fmt(c.cons)}</td><td class="num">${fmt(c.pu)}</td><td class="num">${fmt0(c.montant)}</td>
+      <td class="num">${fmt0(c.espece)}</td><td class="num">${fmt0(c.bons)}</td>
+      <td class="num">${fmt0(c.spa)}</td><td class="num">${fmt0(c.sae)}</td>
+      <td class="num">${fmt0(c.retour)}</td><td class="num">${fmt0(c.controle)}</td>
+      <td class="num">${c.ecart>0?"+":""}${fmt0(c.ecart)}</td></tr>`;}).join("");
+  const pumpSec=(produit,T)=>{const lb=produit==="Super"?"Essence (Super)":"Gasoil";
+    return `<h4 style="text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin:14px 0 4px">${lb}</h4>
+    <table style="font-size:11px"><thead><tr><th>Pompe</th><th class="num">Départ(A)</th><th class="num">Arrivée(B)</th>
+      <th class="num">Cons</th><th class="num">PU</th><th class="num">Montant</th>
+      <th class="num">Espèce</th><th class="num">Bons</th><th class="num">SPA</th><th class="num">SAE</th>
+      <th class="num">Retour</th><th class="num">Contrôle</th><th class="num">Écart</th></tr></thead>
+    <tbody>${pumpRows(produit)}</tbody>
+    <tfoot><tr class="totrow"><td>Totaux</td><td></td><td></td><td class="num">${fmt(T.cons)}</td><td></td>
+      <td class="num">${fmt0(T.montant)}</td><td class="num">${fmt0(T.espece)}</td><td class="num">${fmt0(T.bons)}</td>
+      <td class="num">${fmt0(T.spa)}</td><td class="num">${fmt0(T.sae)}</td><td class="num">${fmt0(T.retour)}</td>
+      <td class="num">${fmt0(T.controle)}</td><td class="num">${T.ecart>0?"+":""}${fmt0(T.ecart)}</td></tr></tfoot></table>`;};
+  const totVol=TG.cons+TS.cons, totMt=TG.montant+TS.montant, totEcart=TG.ecart+TS.ecart;
+  const html=`<div class="bon"><div class="head"><div><h3>FICHE DE CLÔTURE</h3>
     <div>${esc(stationName(ctx.station_id)||"—")}</div></div>
     <div class="meta">${dateLabel(ctx.year,ctx.month,ctx.day)}<br>${STATUT_LABELS[f?f.statut:""]||""}</div></div>
-    <table><tbody>
-      <tr><td>Volume Super vendu</td><td class="num">${fmt(c.volS)} L</td></tr>
-      <tr><td>Volume Gasoil vendu</td><td class="num">${fmt(c.volG)} L</td></tr>
-      <tr><td>Bons à crédit Super / Gasoil</td><td class="num">${fmt(c.cS)} / ${fmt(c.cG)} L</td></tr>
-      <tr><td>Cash théorique attendu</td><td class="num">${fmt0(c.cashTheo)} XOF</td></tr>
-      <tr><td>Versement espèces</td><td class="num">${fmt0(c.vers)} XOF</td></tr>
-      <tr class="totrow"><td>Écart de caisse</td><td class="num">${c.ecart>0?"+":""}${fmt0(c.ecart)} XOF</td></tr>
-      <tr><td>Total crédits clients</td><td class="num">${fmt0(c.mCredit)} XOF</td></tr>
-    </tbody></table>
+    ${pumpSec("Gasoil",TG)}${pumpSec("Super",TS)}
+    <table style="margin-top:14px"><tfoot><tr class="totrow">
+      <td colspan="3"><strong>TOTAL JOURNÉE</strong></td>
+      <td class="num"><strong>${fmt(totVol)} L</strong></td><td></td>
+      <td class="num"><strong>${fmt0(totMt)} XOF</strong></td>
+      <td class="num"><strong>${fmt0(TG.espece+TS.espece)}</strong></td>
+      <td class="num"><strong>${fmt0(TG.bons+TS.bons)}</strong></td>
+      <td class="num"><strong>${fmt0(TG.spa+TS.spa)}</strong></td>
+      <td class="num"><strong>${fmt0(TG.sae+TS.sae)}</strong></td>
+      <td class="num"><strong>${fmt0(TG.retour+TS.retour)}</strong></td>
+      <td class="num"><strong>${fmt0(TG.controle+TS.controle)}</strong></td>
+      <td class="num" style="color:${Math.abs(totEcart)<1?"var(--essence)":"var(--danger)"}"><strong>${totEcart>0?"+":""}${fmt0(totEcart)}</strong></td>
+    </tr></tfoot></table>
     ${f&&f.cloturee_at?`<p class="help">Clôturée le ${new Date(f.cloturee_at).toLocaleString("fr-FR")}</p>`:""}
-    <div class="sign"><div>Visa du gérant</div><div>Visa contrôle</div></div></div>`;
+    <div style="display:flex;justify-content:space-between;margin-top:28px;font-size:12.5px">
+      <div style="border-top:1px solid #000;padding-top:6px;width:30%">Le Comptable</div>
+      <div style="border-top:1px solid #000;padding-top:6px;width:30%;text-align:center">Visa DG</div>
+      <div style="border-top:1px solid #000;padding-top:6px;width:30%;text-align:right">Le Gérant</div>
+    </div></div>`;
   document.getElementById("print-area").innerHTML=html; window.print();
 }
 
@@ -898,6 +982,13 @@ function renderParam(){
   }
   ["newStation","addStation","bulkStations","importStations","newCpt","newName","newPrin","addClient","bulkClients","importClients","newTarProd","newTarPrix","newTarDate","addTarif"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delst]").forEach(b=>b.onclick=async()=>{try{await Store.delStation(b.dataset.delst);}catch(e){toast("Échec : "+e.message);}});
+  // Pompes
+  document.getElementById("pompeBody").innerHTML=(data.pompes||[]).filter(p=>p.station_id===ctx.station_id).map(p=>
+    `<tr><td>${esc(p.nom)}</td><td>${esc(p.produit)}</td>
+     <td>${adm?`<button class="btn ghost small" data-delpompe="${p.id}">✕</button>`:""}</td></tr>`).join("")
+    ||`<tr><td colspan="3" class="muted">Aucune pompe pour cette station. Ajoutez P1A, P2A (Gasoil) puis P1B, P2B (Essence).</td></tr>`;
+  document.querySelectorAll("[data-delpompe]").forEach(b=>b.onclick=async()=>{try{await Store.delPompe(b.dataset.delpompe);await reloadPompes();renderParam();}catch(e){toast("Échec : "+e.message);}});
+  ["newPompeNom","addPompe","newPompeProd"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!adm;});
   document.querySelectorAll("[data-delcl]").forEach(b=>b.onclick=async()=>{try{await Store.delClient(b.dataset.delcl);}catch(e){toast("Échec : "+e.message);}});
   refreshLists();
 }
@@ -915,7 +1006,7 @@ function showTab(tab){
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+tab));
   if(tab==="bon")renderBon();if(tab==="suivi")renderSuivi();if(tab==="export")renderExport();
   if(tab==="param")renderParam();if(tab==="saisie")renderSaisie();if(tab==="ia")renderIA();
-  if(tab==="cloture")renderCloture();
+  if(tab==="cloture"){reloadReleves().then(()=>renderCloture());}
 }
 function clampDay(){const dim=daysInMonth(ctx.year,ctx.month);if(ctx.day>dim)ctx.day=dim;if(ctx.day<1)ctx.day=1;}
 function refreshActive(){fillCtx();showTab(activeTab());}
@@ -931,6 +1022,14 @@ async function reloadFiches(){
   try{ data.fiches=await Store.listFiches({station_id:ctx.station_id,year:ctx.year,month:ctx.month}); }
   catch(e){ data.fiches=[]; }
 }
+async function reloadPompes(){
+  if(!ctx.station_id){data.pompes=[];return;}
+  try{data.pompes=await Store.listPompes(ctx.station_id);}catch(e){data.pompes=[];}
+}
+async function reloadReleves(){
+  if(!ctx.station_id){data.releves=[];return;}
+  try{data.releves=await Store.listReleves({station_id:ctx.station_id,year:ctx.year,month:ctx.month,day:ctx.day});}catch(e){data.releves=[];}
+}
 async function reloadAll(){
   try{
     const [st,cl,tf]=await Promise.all([Store.listStations(),Store.listClients(),Store.listTarifs()]);
@@ -940,6 +1039,8 @@ async function reloadAll(){
   fillCtx();
   await reloadBons();
   await reloadFiches();
+  await reloadPompes();
+  await reloadReleves();
 }
 let channels=[];
 function startRealtime(){
@@ -947,6 +1048,8 @@ function startRealtime(){
   const onChange=async()=>{ await reloadBons(); const t=activeTab(); if(t==="saisie")renderSaisie(); if(t==="bon")renderBon(); if(t==="suivi")renderSuivi(); if(t==="export")renderExport(); if(t==="cloture")renderCloture(); };
   channels.push(Store.channel("rt-bons","bons",onChange));
   channels.push(Store.channel("rt-fiches","fiches",async()=>{ await reloadFiches(); const t=activeTab(); if(t==="cloture")renderCloture(); if(t==="saisie")renderSaisie(); }));
+  channels.push(Store.channel("rt-releves","releves_pompes",async()=>{await reloadReleves();const t=activeTab();if(t==="cloture")renderCloture();}));
+  channels.push(Store.channel("rt-pompes","pompes",async()=>{await reloadPompes();if(activeTab()==="param")renderParam();if(activeTab()==="cloture")renderCloture();}));
   channels.push(Store.channel("rt-stations","stations",async()=>{data.stations=await Store.listStations();refreshActive();}));
   channels.push(Store.channel("rt-clients","clients",async()=>{data.clients=await Store.listClients();refreshLists();if(activeTab()==="param")renderParam();}));
   channels.push(Store.channel("rt-tarifs","tarifs",async()=>{try{data.tarifs=await Store.listTarifs();}catch(e){}if(activeTab()==="param")renderParam();}));
@@ -1019,27 +1122,32 @@ async function loadMe(user){
 
 function wireApp(){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-  document.getElementById("ctxStation").onchange=async e=>{ctx.station_id=e.target.value;await reloadBons();await reloadFiches();refreshActive();};
-  document.getElementById("ctxMonth").onchange=async e=>{ctx.month=+e.target.value;clampDay();await reloadBons();await reloadFiches();refreshActive();};
-  document.getElementById("ctxYear").onchange=async e=>{ctx.year=+e.target.value;clampDay();await reloadBons();await reloadFiches();refreshActive();};
+  document.getElementById("ctxStation").onchange=async e=>{ctx.station_id=e.target.value;await reloadBons();await reloadFiches();await reloadPompes();await reloadReleves();refreshActive();};
+  document.getElementById("ctxMonth").onchange=async e=>{ctx.month=+e.target.value;clampDay();await reloadBons();await reloadFiches();await reloadReleves();refreshActive();};
+  document.getElementById("ctxYear").onchange=async e=>{ctx.year=+e.target.value;clampDay();await reloadBons();await reloadFiches();await reloadReleves();refreshActive();};
   document.getElementById("prevDay").onclick=()=>{if(ctx.day>1){ctx.day--;renderSaisie();}};
   document.getElementById("nextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;renderSaisie();}};
   document.getElementById("dayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);renderSaisie();};
   document.getElementById("addRow").onclick=addRow;
   document.getElementById("btnPrint").onclick=doPrint;
   // Clôture du jour
-  document.getElementById("clPrevDay").onclick=()=>{if(ctx.day>1){ctx.day--;renderCloture();}};
-  document.getElementById("clNextDay").onclick=()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;renderCloture();}};
-  document.getElementById("clDayInput").onchange=e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);renderCloture();};
-  document.getElementById("clVolSuper").onchange=e=>saveClotureField("vol_super",e.target.value);
-  document.getElementById("clVolGasoil").onchange=e=>saveClotureField("vol_gasoil",e.target.value);
-  document.getElementById("clVersement").onchange=e=>saveClotureField("versement",e.target.value);
+  document.getElementById("clPrevDay").onclick=async()=>{if(ctx.day>1){ctx.day--;await reloadReleves();renderCloture();}};
+  document.getElementById("clNextDay").onclick=async()=>{if(ctx.day<daysInMonth(ctx.year,ctx.month)){ctx.day++;await reloadReleves();renderCloture();}};
+  document.getElementById("clDayInput").onchange=async e=>{let d=parseInt(e.target.value||"1");const dim=daysInMonth(ctx.year,ctx.month);ctx.day=Math.min(Math.max(1,d),dim);await reloadReleves();renderCloture();};
   document.getElementById("btnCloturer").onclick=doCloturer;
   document.getElementById("btnReouvrir").onclick=doRouvrir;
   document.getElementById("btnPrintCloture").onclick=printCloture;
   document.querySelectorAll("#expScope button").forEach(b=>b.onclick=()=>{expScope=b.dataset.scope;document.querySelectorAll("#expScope button").forEach(x=>x.classList.toggle("on",x===b));renderExport();});
   document.getElementById("btnCsv").onclick=downloadCsv;
   document.getElementById("btnCopy").onclick=()=>{navigator.clipboard.writeText(document.getElementById("sageOut").value);toast("Export copié.");};
+  document.getElementById("addPompe").onclick=async()=>{
+    const nom=document.getElementById("newPompeNom").value.trim();
+    const prod=document.getElementById("newPompeProd").value;
+    if(!nom){toast("Le nom de la pompe est requis.");return;}
+    if(!ctx.station_id){toast("Sélectionnez d'abord une station.");return;}
+    try{await Store.addPompe(nom,prod,ctx.station_id);document.getElementById("newPompeNom").value="";await reloadPompes();renderParam();toast("Pompe ajoutée.");}
+    catch(e){toast("Échec : "+e.message);}
+  };
   document.getElementById("addStation").onclick=async()=>{const v=document.getElementById("newStation").value.trim();if(!v)return;try{await Store.addStation(v);document.getElementById("newStation").value="";data.stations=await Store.listStations();refreshActive();renderParam();toast("Station ajoutée.");}catch(e){toast("Échec : "+e.message);}};
   document.getElementById("importStations").onclick=async()=>{
     const lines=document.getElementById("bulkStations").value.split("\n").map(l=>l.trim()).filter(Boolean);
