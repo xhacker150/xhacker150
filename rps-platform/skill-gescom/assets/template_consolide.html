@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapport des prises — RPS — 23/06/2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--red:#E30613;--blue:#0150DA;--ink:#1f2733;--mut:#6b7280;--bg:#f4f6fa;--card:#fff;--line:#e6e9ef}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#fff;border-bottom:3px solid var(--red);padding:14px 22px;display:flex;align-items:center;gap:16px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+header img{height:46px}header .t{font-size:19px;font-weight:bold}header .s{color:var(--mut);font-size:13px}
+.bluebar{height:4px;background:var(--blue)}
+.wrap{max-width:1320px;margin:0 auto;padding:18px 22px 40px}
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+.filters label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin-bottom:4px;font-weight:bold}
+select,input{padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:14px;min-width:170px;background:#fff}
+.toggle{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.toggle button{border:0;background:#fff;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:bold;color:var(--mut)}
+.toggle button.on{background:var(--blue);color:#fff}
+.btns{margin-left:auto;display:flex;gap:8px}
+.reset{background:var(--red);color:#fff;border:0;border-radius:7px;padding:9px 16px;font-weight:bold;cursor:pointer}
+.print{background:var(--blue);color:#fff;border:0;border-radius:7px;padding:9px 16px;font-weight:bold;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.kpi .v{font-size:22px;font-weight:bold;color:var(--blue)}.kpi.red .v{color:var(--red)}
+.kpi .l{font-size:12px;color:var(--mut);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h3{margin:0 0 10px;font-size:14px;color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line)}
+th{background:#f0f3f8;cursor:pointer;user-select:none;font-size:11.5px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#f8fafc}
+.chwrap{position:relative;height:300px}
+.muted{color:var(--mut);font-size:12px}
+.printhead{display:none}
+.tbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media print{
+ @page{size:A4 landscape;margin:10mm}
+ body{background:#fff}
+ header{box-shadow:none}
+ .bluebar,.filters,.grid2,.print,.reset,.btns,.muted{display:none!important}
+ .wrap{max-width:none;padding:0}
+ .card{border:0;border-radius:0;padding:0}
+ .printhead{display:block;margin:6px 0 10px}
+ .printhead .pt{font-size:15px;font-weight:bold;color:var(--red)}
+ .printhead .pf{font-size:12px;color:#333;margin-top:3px}
+ #tbl{font-size:10.5px}
+ #tbl thead{display:table-header-group}
+ #tbl tr{page-break-inside:avoid}
+ th{background:#eef!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ div[style*="max-height"]{max-height:none!important;overflow:visible!important}
+ .kpis{grid-template-columns:repeat(5,1fr);margin-bottom:8px}
+}
+</style></head><body>
+<header><img src="data:image/png;base64,__LOGO__"><div><div class="t">Rapport des prises par client, produit et station</div><div class="s">Consolidé multi-dates — Service Contrôle</div></div></header>
+<div class="bluebar"></div>
+<div class="wrap">
+<div class="filters">
+ <div><label>Du</label><input type="date" id="fDu" style="min-width:150px"></div>
+ <div><label>Au</label><input type="date" id="fAu" style="min-width:150px"></div>
+ <div><label>Station</label><select id="fStation"></select></div>
+ <div><label>Produit</label><select id="fProduit"></select></div>
+ <div><label>Client</label><select id="fClient"></select></div>
+ <div><label>Type de vente</label><select id="fType"><option value="">Toutes</option><option>Espèces</option><option>Crédit</option></select></div>
+ <div><label>Mesure</label><div class="toggle"><button id="mQ" class="on">Quantité (L)</button><button id="mM">Montant (FCFA)</button></div></div>
+ <div class="btns"><button class="print" onclick="window.print()">🖨 Imprimer</button><button class="reset" onclick="resetF()">Réinitialiser</button></div>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="grid2">
+ <div class="card"><h3 id="t1">Par station</h3><div class="chwrap"><canvas id="cStation"></canvas></div></div>
+ <div class="card"><h3 id="t2">Répartition par produit</h3><div class="chwrap"><canvas id="cProduit"></canvas></div></div>
+</div>
+<div class="grid2">
+ <div class="card"><h3 id="t3">Top 12 clients</h3><div class="chwrap"><canvas id="cClient"></canvas></div></div>
+ <div class="card"><h3>Synthèse produit × mesure</h3><div id="pivot"></div></div>
+</div>
+__MISSING_CARD__
+<div class="card">
+ <div class="printhead"><div class="pt">RPS — Détail des prises du 23/06/2026</div><div class="pf" id="pfilters"></div></div>
+ <div class="tbar"><h3 style="margin:0">Détail des prises (<span id="cnt"></span> lignes)</h3>
+   <div style="display:flex;gap:8px;flex-wrap:wrap">
+     <button class="print" onclick="window.print()">🖨 PDF (entête RPS)</button>
+     <button class="print" style="background:#1d7a45" onclick="exportExcel()">⬇ Excel</button>
+     <button class="print" style="background:#555" onclick="exportTxt()">⬇ TXT</button>
+   </div></div>
+ <div style="overflow:auto;max-height:520px"><table id="tbl"><thead><tr>
+ <th data-k="date">Date</th><th data-k="station">Station</th><th data-k="piece">Pièce</th>
+ <th data-k="compte">Compte tiers</th><th data-k="client">Client</th><th data-k="tvente">Type</th><th data-k="description">Description</th>
+ <th data-k="code">Code</th><th data-k="produit">Produit</th>
+ <th class="n" data-k="qte">Quantité (L)</th><th class="n" data-k="prix">PU (FCFA)</th><th class="n" data-k="montant">Montant (FCFA)</th>
+ </tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+ <div class="muted" style="margin-top:8px">Montant = quantité × prix unitaire. Source : export GESCOM fusionné du 23/06/2026.</div>
+</div>
+</div>
+<script>
+const DATA=__DATA__;
+const RED='#E30613',BLUE='#0150DA';
+let measure='qte';
+const fmt=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n));
+const fmt2=n=>new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const $=id=>document.getElementById(id);
+function uniq(k){return [...new Set(DATA.map(r=>r[k]))].sort((a,b)=>(''+a).localeCompare(''+b,'fr',{numeric:true}))}
+function fillSel(id,arr,allLabel){const s=$(id);s.innerHTML='<option value="">'+allLabel+'</option>'+arr.map(v=>`<option>${v}</option>`).join('')}
+function dkey(d){var p=(d||'').split('/');return p.length===3?(p[2]+p[1].padStart(2,'0')+p[0].padStart(2,'0')):'';}
+function ikey(v){return (v||'').replace(/-/g,'');}
+function iso(k){return k.slice(0,4)+'-'+k.slice(4,6)+'-'+k.slice(6,8);}
+function fr(v){var p=(v||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):v;}
+var _dk=[...new Set(DATA.map(r=>dkey(r.date)))].sort();
+var _min=_dk[0], _max=_dk[_dk.length-1];
+['fDu','fAu'].forEach(id=>{$(id).min=iso(_min);$(id).max=iso(_max);$(id).onchange=render;});
+$('fDu').value=iso(_min); $('fAu').value=iso(_max);
+fillSel('fStation',uniq('station'),'Toutes les stations');
+fillSel('fProduit',uniq('produit'),'Tous les produits');
+fillSel('fClient',uniq('client'),'Tous les clients');
+['fStation','fProduit','fClient','fType'].forEach(id=>$(id).onchange=render);
+$('mQ').onclick=()=>{measure='qte';$('mQ').classList.add('on');$('mM').classList.remove('on');render()};
+$('mM').onclick=()=>{measure='montant';$('mM').classList.add('on');$('mQ').classList.remove('on');render()};
+function resetF(){['fStation','fProduit','fClient','fType'].forEach(id=>$(id).value='');$('fDu').value=iso(_min);$('fAu').value=iso(_max);render()}
+function filtered(){const s=$('fStation').value,p=$('fProduit').value,c=$('fClient').value,tv=$('fType').value;const du=ikey($('fDu').value)||_min, au=ikey($('fAu').value)||_max;
+ return DATA.filter(r=>{const dk=dkey(r.date);return dk>=du&&dk<=au&&(!s||r.station===s)&&(!p||r.produit===p)&&(!c||r.client===c)&&(!tv||r.tvente===tv);})}
+function agg(rows,key){const m={};rows.forEach(r=>{m[r[key]]=(m[r[key]]||0)+r[measure]});return m}
+let charts={};
+function bar(id,labels,vals,color){if(typeof Chart==="undefined")return;if(charts[id])charts[id].destroy();
+ charts[id]=new Chart($(id),{type:'bar',data:{labels,datasets:[{data:vals,backgroundColor:color,borderRadius:4}]},
+ options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+ tooltip:{callbacks:{label:c=>fmt(c.parsed.x)+(measure==='qte'?' L':' FCFA')}}},
+ scales:{x:{ticks:{callback:v=>fmt(v),font:{size:10}}},y:{ticks:{font:{size:10}}}}}})}
+function doughnut(id,labels,vals){if(typeof Chart==="undefined")return;if(charts[id])charts[id].destroy();
+ charts[id]=new Chart($(id),{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:[RED,BLUE,'#f0a500','#2e9e5b']}]},
+ options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'},
+ tooltip:{callbacks:{label:c=>c.label+': '+fmt(c.parsed)+(measure==='qte'?' L':' FCFA')}}}}})}
+let sortK='montant',sortDir=-1; let CUR=[];
+document.querySelectorAll('#tbl th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortDir=(sortK===k)?-sortDir:1;sortK=k;render()});
+function render(){
+ const rows=filtered();
+ const totQ=rows.reduce((a,r)=>a+r.qte,0),totM=rows.reduce((a,r)=>a+r.montant,0);
+ $('kpis').innerHTML=[
+  ['Quantité totale',fmt(totQ)+' L','red'],
+  ['Montant total',fmt(totM)+' FCFA',''],
+  ['Lignes de prise',fmt(rows.length),''],
+  ['Clients',new Set(rows.map(r=>r.client)).size,''],
+  ['Stations',new Set(rows.map(r=>r.station)).size,'']
+ ].map(k=>`<div class="kpi ${k[2]}"><div class="v">${k[1]}</div><div class="l">${k[0]}</div></div>`).join('');
+ const st=agg(rows,'station');const se=Object.entries(st).sort((a,b)=>b[1]-a[1]).slice(0,15);
+ bar('cStation',se.map(e=>e[0].split(' - ')[1]||e[0]),se.map(e=>e[1]),BLUE);
+ $('t1').textContent='Par station — '+(measure==='qte'?'Quantité (L)':'Montant (FCFA)');
+ const pr=agg(rows,'produit');doughnut('cProduit',Object.keys(pr),Object.values(pr));
+ $('t2').textContent='Répartition par produit — '+(measure==='qte'?'L':'FCFA');
+ const cl=agg(rows,'client');const ce=Object.entries(cl).sort((a,b)=>b[1]-a[1]).slice(0,12);
+ bar('cClient',ce.map(e=>e[0]),ce.map(e=>e[1]),RED);
+ $('t3').textContent='Top 12 clients — '+(measure==='qte'?'Quantité (L)':'Montant (FCFA)');
+ let pv='<table><thead><tr><th>Produit</th><th class=n>Quantité (L)</th><th class=n>Montant (FCFA)</th><th class=n>Part</th></tr></thead><tbody>';
+ [...new Set(rows.map(r=>r.produit))].forEach(p=>{const q=rows.filter(r=>r.produit===p).reduce((a,r)=>a+r.qte,0);const m=rows.filter(r=>r.produit===p).reduce((a,r)=>a+r.montant,0);
+  pv+=`<tr><td>${p}</td><td class=n>${fmt(q)}</td><td class=n>${fmt(m)}</td><td class=n>${totM?Math.round(m/totM*100):0}%</td></tr>`});
+ pv+=`<tr style="font-weight:bold;background:#f0f3f8"><td>TOTAL</td><td class=n>${fmt(totQ)}</td><td class=n>${fmt(totM)}</td><td class=n>100%</td></tr></tbody></table>`;
+ $('pivot').innerHTML=pv;
+ // print context line
+ const fS=$('fStation').value||'Toutes',fP=$('fProduit').value||'Tous',fC=$('fClient').value||'Tous',fT=$('fType').value||'Toutes';const fPer=fr($('fDu').value)+' au '+fr($('fAu').value);
+ $('pfilters').textContent=`Période : ${fPer}  |  Station : ${fS}  |  Produit : ${fP}  |  Client : ${fC}  |  Vente : ${fT}  —  ${rows.length} lignes  •  ${fmt(totQ)} L  •  ${fmt(totM)} FCFA  (imprimé le ${new Date().toLocaleDateString('fr-FR')})`;
+ const sorted=[...rows].sort((a,b)=>{let x=a[sortK],y=b[sortK];if(typeof x==='number')return (x-y)*sortDir;return (''+x).localeCompare(''+y,'fr')*sortDir}); CUR=sorted;
+ $('cnt').textContent=fmt(sorted.length);
+ $('tbl').querySelector('tbody').innerHTML=sorted.map(r=>`<tr><td>${r.date}</td><td>${r.station}</td><td>${r.piece}</td><td>${r.compte}</td><td>${r.client}</td><td>${r.tvente}</td><td>${r.description||""}</td><td>${r.code}</td><td>${r.produit}</td><td class=n>${fmt2(r.qte)}</td><td class=n>${fmt(r.prix)}</td><td class=n>${fmt(r.montant)}</td></tr>`).join('');
+ $('tbl').querySelector('tfoot').innerHTML=`<tr style="font-weight:bold;background:#f0f3f8"><td colspan=9>TOTAL (${sorted.length} lignes)</td><td class=n>${fmt2(totQ)}</td><td></td><td class=n>${fmt(totM)}</td></tr>`;
+}
+const COLS=[['date','Date'],['station','Station'],['piece','Pièce'],['compte','Compte tiers'],['client','Client'],['tvente','Type'],['description','Description'],['code','Code'],['produit','Produit'],['qte','Quantité (L)'],['prix','PU (FCFA)'],['montant','Montant (FCFA)']];
+function ctx(){const fS=$('fStation').value||'Toutes',fP=$('fProduit').value||'Tous',fC=$('fClient').value||'Tous',fT=$('fType').value||'Toutes';const fPer=fr($('fDu').value)+' au '+fr($('fAu').value);return `Station ${fS} | Produit ${fP} | Client ${fC} | Vente ${fT}`;}
+function dl(content,name,mime){const b=new Blob([content],{type:mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();}
+function exportExcel(){
+  if(typeof XLSX!=='undefined'){
+    const head=COLS.map(c=>c[1]);
+    const data=[['RPS — Détail des prises du 23/06/2026'],[ctx()],[],head,...CUR.map(r=>COLS.map(c=>r[c[0]]))];
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:11},{wch:24},{wch:12},{wch:12},{wch:24},{wch:9},{wch:18},{wch:6},{wch:9},{wch:12},{wch:10},{wch:14}];
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Prises');
+    XLSX.writeFile(wb,'PRISES-RPS-23-06-2026.xlsx'); return;
+  }
+  // repli CSV (point-virgule, ouvre dans Excel)
+  const esc=v=>{v=(''+v).replace(/"/g,'""');return /[;"\n]/.test(v)?'"'+v+'"':v;};
+  const head=COLS.map(c=>c[1]).join(';');
+  const lines=CUR.map(r=>COLS.map(c=>esc(r[c[0]])).join(';'));
+  const csv=['RPS - Detail des prises du 23/06/2026',ctx(),'',head,...lines].join('\r\n');
+  dl('\ufeff'+csv,'PRISES-RPS-23-06-2026.csv','text/csv;charset=utf-8');
+}
+function exportTxt(){
+  const head=COLS.map(c=>c[1]).join('\t');
+  const lines=CUR.map(r=>COLS.map(c=>r[c[0]]).join('\t'));
+  const txt=['RPS - Detail des prises du 23/06/2026',ctx(),'',head,...lines].join('\r\n');
+  dl('\ufeff'+txt,'PRISES-RPS-23-06-2026.txt','text/plain;charset=utf-8');
+}
+render();
+</script></body></html>

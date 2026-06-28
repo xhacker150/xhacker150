@@ -1,0 +1,48 @@
+[
+ {
+  "station": "43",
+  "piece": "F43000407",
+  "from_compte": "4112006",
+  "to_compte": "41110095",
+  "from_nom": "Moussa/ SS-Transport",
+  "to_nom": "Moussa Seydalamine",
+  "motif": "client Moussa Sidi Lamine - decision utilisateur"
+ },
+ {
+  "station": "31",
+  "piece": "F31312287",
+  "from_compte": "4111000",
+  "to_compte": "41110024",
+  "motif": "compte tronque -> ETS Oudou Younoussa (par nom)"
+ },
+ {
+  "station": "31",
+  "piece": "F31312288",
+  "from_compte": "4111000",
+  "to_compte": "41110024",
+  "motif": "compte tronque -> ETS Oudou Younoussa (par nom)"
+ },
+ {
+  "station": "31",
+  "piece": "F31312289",
+  "from_compte": "4111000",
+  "to_compte": "41110024",
+  "motif": "compte tronque -> ETS Oudou Younoussa (par nom)"
+ },
+ {
+  "station": "47",
+  "piece": "F47000001",
+  "from_compte": "411299005",
+  "to_compte": "41129005",
+  "motif": "compte malforme -> BACOREX TELECOM (par nom)"
+ },
+ {
+  "station": "43",
+  "piece": "F43000410",
+  "from_compte": "4112006",
+  "to_compte": "41110095",
+  "from_nom": "Moussa/ SS-Transport",
+  "to_nom": "Moussa Seydalamine",
+  "motif": "client Moussa Sidi Lamine - decision utilisateur (24/06)"
+ }
+]

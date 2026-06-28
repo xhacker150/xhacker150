@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================
+   Charte graphique RPS (voir CLAUDE.md §4)
+   Rouge #E30613 · Bleu #0150DA · Encre #1b2330
+   Titres : Montserrat · Texte : Inter
+   ============================================================ */
+
+:root {
+  /* Couleurs de marque */
+  --rps-rouge: #e30613;
+  --rps-rouge-d: #b3050f;
+  --rps-bleu: #0150da;
+  --rps-bleu-d: #0a3a9c;
+  --rps-encre: #1b2330;
+  --rps-mut: #697586;
+  --rps-bg: #eef1f6;
+  --rps-card: #ffffff;
+  --rps-line: #e3e7ef;
+  --rps-soft: #f6f8fc;
+  --rps-vert: #1d8a4e;
+  --rps-ambre: #e08a00;
+  --rps-shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --radius: 0.875rem;
+
+  /* Tokens applicatifs (thème clair) */
+  --background: var(--rps-bg);
+  --foreground: var(--rps-encre);
+  --card: var(--rps-card);
+  --card-foreground: var(--rps-encre);
+  --muted: var(--rps-soft);
+  --muted-foreground: var(--rps-mut);
+  --border: var(--rps-line);
+  --primary: var(--rps-bleu);
+  --primary-foreground: #ffffff;
+  --destructive: var(--rps-rouge);
+  --destructive-foreground: #ffffff;
+}
+
+.dark {
+  --rps-encre: #e7ecf5;
+  --rps-mut: #9aa7bd;
+  --rps-bg: #0e131c;
+  --rps-card: #171e2b;
+  --rps-line: #283242;
+  --rps-soft: #1c2533;
+  --rps-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+  --background: var(--rps-bg);
+  --foreground: var(--rps-encre);
+  --card: var(--rps-card);
+  --card-foreground: var(--rps-encre);
+  --muted: var(--rps-soft);
+  --muted-foreground: var(--rps-mut);
+  --border: var(--rps-line);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-rps-rouge: var(--rps-rouge);
+  --color-rps-rouge-d: var(--rps-rouge-d);
+  --color-rps-bleu: var(--rps-bleu);
+  --color-rps-bleu-d: var(--rps-bleu-d);
+  --color-rps-encre: var(--rps-encre);
+  --color-rps-mut: var(--rps-mut);
+  --color-rps-vert: var(--rps-vert);
+  --color-rps-ambre: var(--rps-ambre);
+
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-montserrat);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 8px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Bandeau signature RPS : rouge 0→62 %, bleu 62→100 % */
+.rps-bandeau {
+  height: 3px;
+  background: linear-gradient(90deg, var(--rps-rouge) 0 62%, var(--rps-bleu) 62% 100%);
+}
