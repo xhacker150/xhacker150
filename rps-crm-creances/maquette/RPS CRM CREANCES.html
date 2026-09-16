@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RPS CRM Créances</title>
+<style>
+:root{--rouge:#EA0000;--bleu:#0051DD;--ink:#1B1F2E;--grey:#6A7280;--light:#F4F6FA;--lightb:#EAF0FC;--lightr:#FDECEC;--lightv:#E7F4EA;--vert:#137333;--bord:#D8DEE9;--or:#B45309;--lighto:#FEF3C7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:var(--light);color:var(--ink);font-size:14px}
+header{background:#fff;border-bottom:3px solid;border-image:linear-gradient(90deg,var(--rouge) 66%,var(--bleu) 66%) 1;padding:10px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+.logo{font-weight:bold;font-size:19px}.logo b{color:var(--rouge)}.logo span{color:var(--bleu)}
+.sub{font-size:11px;color:var(--grey)}
+header .sp{flex:1}
+.btn{border:1px solid var(--bord);background:#fff;border-radius:7px;padding:7px 13px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.btn:hover{background:var(--lightb)}
+.btn.pr{background:var(--rouge);border-color:var(--rouge);color:#fff;font-weight:bold}
+.btn.pr:hover{background:#c40000}
+nav{background:#fff;border-bottom:1px solid var(--bord);padding:0 22px;display:flex;gap:2px;overflow-x:auto}
+nav button{border:0;background:none;padding:11px 15px;font-size:13px;font-weight:bold;color:var(--grey);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-family:inherit}
+nav button.on{color:var(--rouge);border-bottom-color:var(--rouge)}
+main{padding:18px 22px;max-width:1250px;margin:0 auto}
+.tuiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px}
+.tuile{background:#fff;border:1px solid var(--bord);border-radius:9px;padding:12px 14px}
+.tuile .l{font-size:10.5px;font-weight:bold;color:var(--grey);text-transform:uppercase}
+.tuile .v{font-size:19px;font-weight:bold;margin-top:4px}
+.tuile.r{border-left:4px solid var(--rouge)}.tuile.r .v{color:var(--rouge)}
+.tuile.v2{border-left:4px solid var(--vert)}.tuile.v2 .v{color:var(--vert)}
+.tuile.b{border-left:4px solid var(--bleu)}.tuile.b .v{color:var(--bleu)}
+.card{background:#fff;border:1px solid var(--bord);border-radius:9px;padding:14px 16px;margin-bottom:16px}
+.card h3{font-size:13px;color:var(--bleu);margin-bottom:10px;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--bleu);color:#fff;padding:7px 8px;text-align:left;font-size:11px;position:sticky;top:0}
+th.num,td.num{text-align:right}
+td{padding:6px 8px;border-bottom:1px solid var(--bord)}
+tr.cl{cursor:pointer}tr.cl:hover{background:var(--lightb)}
+tr:nth-child(even){background:var(--light)}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:bold}
+.badge.rouge{background:var(--lightr);color:var(--rouge)}
+.badge.vert{background:var(--lightv);color:var(--vert)}
+.badge.bleu{background:var(--lightb);color:var(--bleu)}
+.badge.or{background:var(--lighto);color:var(--or)}
+.badge.gris{background:var(--light);color:var(--grey);border:1px solid var(--bord)}
+input,select,textarea{border:1px solid var(--bord);border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit}
+.bar{height:14px;background:var(--lightb);border-radius:7px;overflow:hidden;margin:2px 0}
+.bar i{display:block;height:100%;background:var(--bleu)}
+.bar.r i{background:var(--rouge)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.kcol{background:#fff;border:1px solid var(--bord);border-radius:9px;padding:10px;min-height:80px}
+.kcol h4{font-size:11.5px;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--bord)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
+.kcard{border:1px solid var(--bord);border-left:4px solid var(--bleu);border-radius:7px;padding:8px 10px;margin-bottom:8px;background:#fff;font-size:12px}
+.kcard b{display:block;font-size:12.5px}
+.kcard .m{color:var(--rouge);font-weight:bold}
+.kcard .a{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.kcard .a button{font-size:10.5px;padding:3px 7px}
+#fiche{position:fixed;inset:0;background:rgba(27,31,46,.45);display:none;z-index:100}
+#fiche.on{display:block}
+#fpan{position:absolute;right:0;top:0;bottom:0;width:min(860px,96vw);background:var(--light);overflow-y:auto;padding:18px;box-shadow:-6px 0 24px rgba(0,0,0,.25)}
+.fh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.fh h2{font-size:19px}
+.muted{color:var(--grey);font-size:11.5px}
+.tl{border-left:3px solid var(--bord);margin-left:6px;padding-left:14px}
+.tl .ev{margin-bottom:9px;position:relative;font-size:12.5px}
+.tl .ev:before{content:"";position:absolute;left:-19.5px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--bleu)}
+.frm{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.note{font-size:11px;color:var(--grey);margin-top:8px;line-height:1.5}
+#src{font-size:11px;color:var(--grey)}
+.ok{color:var(--vert);font-weight:bold}
+h1.pg{font-size:17px;margin-bottom:12px}
+.search{width:260px}
+.warn{background:var(--lightr);border:1px solid #f3b5b5;color:var(--rouge);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="logo"><b>RPS</b> <span>CRM CRÉANCES</span></div>
+  <div class="sub">Facturation · Recouvrement · Créances — RISSA PETROLEUM SERVICE</div></div>
+  <div class="sp"></div>
+  <span id="src">Source : non chargée</span>
+  <input id="user" placeholder="Votre nom (pour les relances)" style="width:170px">
+  <button class="btn" onclick="choisirDossier()">📁 Dossier REPORTING</button>
+  <button class="btn" onclick="ouvrirConfig()">⚙ Source</button>
+  <button class="btn pr" onclick="recharger()">⟳ Actualiser</button>
+</header>
+<nav>
+  <button class="on" data-t="dash" onclick="tab('dash')">TABLEAU DE BORD</button>
+  <button data-t="clients" onclick="tab('clients')">CLIENTS</button>
+  <button data-t="reco" onclick="tab('reco')">RECOUVREMENT</button>
+  <button data-t="fact" onclick="tab('fact')">FACTURATION</button>
+</nav>
+<main>
+  <div class="warn" id="warn"></div>
+  <section id="t-dash"></section>
+  <section id="t-clients" hidden></section>
+  <section id="t-reco" hidden></section>
+  <section id="t-fact" hidden></section>
+</main>
+<div id="fiche" onclick="if(event.target.id==='fiche')fermerFiche()"><div id="fpan"></div></div>
+<div id="cfg" style="display:none;position:fixed;inset:0;background:rgba(27,31,46,.45);z-index:120" onclick="if(event.target.id==='cfg')this.style.display='none'">
+  <div style="background:#fff;max-width:520px;margin:8vh auto;border-radius:10px;padding:22px">
+    <h3 style="color:var(--bleu);margin-bottom:10px">SOURCE DES DONNÉES</h3>
+    <p class="note">Mode « Fichiers du pont » : lit les extractions quotidiennes dans le dossier REPORTING CLAUDE RPS (sql_out).<br>
+    Mode « API serveur » : interroge directement l'API du pont (voir CDC-05) — même application, zéro fichier.</p>
+    <div class="frm"><label><input type="radio" name="md" value="fichiers" checked> Fichiers du pont</label>
+    <label><input type="radio" name="md" value="api"> API serveur</label></div>
+    <div class="frm"><input id="apiurl" placeholder="URL de l'API, ex: http://rps-server:8080/api" style="flex:1"><input id="apikey" placeholder="Clé API" style="width:130px"></div>
+    <div class="frm"><button class="btn pr" onclick="sauverConfig()">Enregistrer</button></div>
+  </div>
+</div>
+<script>
+"use strict";
+/* ================= état ================= */
+let racine=null, D=null, CRM=[], MODE="fichiers", API={url:"",key:""};
+const fmt=n=>Math.round(n).toLocaleString("fr-FR").replace(/ /g," ");
+const dmy=s=>s?`${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(2,4)}`:"—";
+const today=()=>new Date().toISOString().slice(0,10);
+const jours=s=>s?Math.floor((new Date(today())-new Date(s))/86400000):9999;
+const MOIS=["janv","févr","mars","avril","mai","juin","juil","août","sept","oct","nov","déc"];
+try{const c=JSON.parse(localStorage.getItem("rpscrm_cfg")||"{}");MODE=c.mode||"fichiers";API=c.api||API;}catch(e){}
+try{document.addEventListener("DOMContentLoaded",()=>{const u=localStorage.getItem("rpscrm_user");if(u)document.getElementById("user").value=u;});}catch(e){}
+/* ================= chargement ================= */
+async function choisirDossier(){
+  try{racine=await window.showDirectoryPicker({mode:"readwrite"});await recharger();}catch(e){}
+}
+function ouvrirConfig(){document.getElementById("cfg").style.display="block";
+  document.querySelectorAll('input[name=md]').forEach(r=>r.checked=(r.value===MODE));
+  document.getElementById("apiurl").value=API.url;document.getElementById("apikey").value=API.key;}
+function sauverConfig(){MODE=document.querySelector('input[name=md]:checked').value;
+  API={url:document.getElementById("apiurl").value.trim(),key:document.getElementById("apikey").value.trim()};
+  try{localStorage.setItem("rpscrm_cfg",JSON.stringify({mode:MODE,api:API}));}catch(e){}
+  document.getElementById("cfg").style.display="none";recharger();}
+async function lireFichier(chemin){ // chemin: ["sql_out","qr0_clients.txt"]
+  let d=racine;for(const p of chemin.slice(0,-1))d=await d.getDirectoryHandle(p);
+  const f=await d.getFileHandle(chemin[chemin.length-1]);return await(await f.getFile()).text();
+}
+function tsv(txt){const L=txt.split(/\r?\n/).filter(x=>x.trim());const rows=L.slice(1).map(l=>l.split("\t"));return rows;}
+async function recharger(){
+  const w=document.getElementById("warn");w.style.display="none";
+  try{
+    let t0,t1,t3,t4,mtime="";
+    if(MODE==="api"&&API.url){
+      const h={"X-API-Key":API.key};
+      const j=await(await fetch(API.url.replace(/\/$/,"")+"/crm/extract",{headers:h})).json();
+      t0=j.clients;t1=j.facturation;t3=j.ecritures;t4=j.livraisons;mtime=j.date||"";
+      construire(t0,t1,t3,t4,"API serveur — "+(mtime||"live"));
+    }else{
+      if(!racine){await choisirDossier();if(!racine)return;}
+      const f0=await lireFichier(["sql_out","qr0_clients.txt"]);
+      const f1=await lireFichier(["sql_out","qr1_fact_clients.txt"]);
+      const f3=await lireFichier(["sql_out","qr3_ecr_clients.txt"]);
+      const f4=await lireFichier(["sql_out","qr4_livr_clients.txt"]);
+      construire(tsv(f0),tsv(f1),tsv(f3),tsv(f4),"Fichiers du pont (sql_out)");
+    }
+    await chargerCRM();rendre();
+  }catch(e){
+    w.textContent="Données introuvables : choisis le dossier « REPORTING CLAUDE RPS » (bouton 📁). Les fichiers requis (sql_out/qr0, qr1, qr3, qr4) sont produits chaque matin par le pont. Détail : "+e.message;
+    w.style.display="block";
+  }
+}
+function construire(r0,r1,r3,r4,src){
+  const C={};
+  for(const r of r0){if(r.length<2)continue;C[r[0]]={compte:r[0],nom:r[1].trim(),ran:0,fact:0,regl:0,debnr:0,mens:{},ecr:[],livr:[],derFact:"",derRegl:"",litres:0,nbRegl:0};}
+  for(const r of r1){const c=C[r[0]];if(!c)continue;const mo=r[1];const ht=parseFloat(r[2])||0;c.mens[mo]=(c.mens[mo]||0)+ht;c.fact+=ht;}
+  for(const r of r3){const c=C[r[0]];if(!c)continue;const e={d:r[1],jo:r[2],pc:r[3],intit:r[5],sens:+r[6],m:parseFloat(r[7])||0};c.ecr.push(e);
+    if(e.jo==="RAN"){c.ran+=e.sens===0?e.m:-e.m;}
+    else if(e.sens===1){c.regl+=e.m;c.nbRegl++;if(e.d>c.derRegl)c.derRegl=e.d;}
+    else{c.debnr+=e.m;}}
+  for(const r of r4){const c=C[r[0]];if(!c)continue;const q=parseFloat(r[5])||0,m=parseFloat(r[6])||0;
+    c.livr.push({d:r[1],pc:r[2],des:r[4],q,m,st:(r[7]||"").split("RPS").pop().trim()});
+    if(r[1]>c.derFact)c.derFact=r[1];if(r[1]>="2026-01-01")c.litres+=q;}
+  for(const k in C){const c=C[k];c.solde=c.ran+c.fact+c.debnr-c.regl;
+    const dr=c.ecr.filter(e=>e.jo!=="RAN"&&e.sens===1).map(e=>e.d).sort();
+    if(dr.length>=3){const iv=[];for(let i=1;i<dr.length;i++)iv.push((new Date(dr[i])-new Date(dr[i-1]))/86400000);
+      iv.sort((a,b)=>a-b);const med=iv[Math.floor(iv.length/2)];
+      c.cadence=Math.round(med);c.seuil=Math.min(45,Math.max(10,Math.round(1.5*med)));}
+    else{c.cadence=null;c.seuil=30;}
+    const mm=c.ecr.filter(e=>e.jo!=="RAN"&&e.sens===1&&(e.jo==="CAINIT"||e.jo==="NITA")).length;
+    const avg=c.nbRegl?c.regl/c.nbRegl:0;
+    c.typo = c.solde<-1000?"créditeur"
+      : (c.nbRegl===0&&c.fact>500000)?"compte muet"
+      : c.compte.startsWith("41150")?"BV / Bénin"
+      : avg>15000000?"grand compte à remises"
+      : (c.nbRegl>=15&&mm>c.nbRegl/2)?"fil de l'eau (mobile money)"
+      : c.nbRegl>=15?"au camion / à la consommation"
+      : "standard";}
+  D={C,src,liste:Object.values(C).filter(c=>c.fact>0||Math.abs(c.solde)>1000||c.regl>0)};
+  document.getElementById("src").innerHTML="Source : <b>"+src+"</b> · "+D.liste.length+" clients actifs";
+}
+/* ================= couche CRM (relances) ================= */
+function slugUser(){const u=(document.getElementById("user").value||"anonyme").trim();try{localStorage.setItem("rpscrm_user",u);}catch(e){}
+  return u.toLowerCase().replace(/[^a-z0-9]+/g,"_")||"anonyme";}
+async function chargerCRM(){
+  CRM=[];
+  if(!racine){try{CRM=JSON.parse(localStorage.getItem("rpscrm_actions")||"[]");}catch(e){}return;}
+  try{
+    const d30=await racine.getDirectoryHandle("30_CLIENTS",{create:true});
+    const dd=await d30.getDirectoryHandle("data",{create:true});
+    for await(const [name,h] of dd.entries()){
+      if(name.startsWith("crm_")&&name.endsWith(".json")&&h.kind==="file"){
+        try{const arr=JSON.parse(await(await h.getFile()).text());if(Array.isArray(arr))CRM.push(...arr);}catch(e){}
+      }
+    }
+  }catch(e){}
+  CRM.sort((a,b)=>(a.date<b.date?1:-1));
+}
+async function sauverCRM(){
+  const mien=CRM.filter(a=>a.auteur_slug===slugUser());
+  if(racine){
+    try{
+      const d30=await racine.getDirectoryHandle("30_CLIENTS",{create:true});
+      const dd=await d30.getDirectoryHandle("data",{create:true});
+      const f=await dd.getFileHandle("crm_"+slugUser()+".json",{create:true});
+      const w=await f.createWritable();await w.write(JSON.stringify(mien,null,1));await w.close();return;
+    }catch(e){}
+  }
+  try{localStorage.setItem("rpscrm_actions",JSON.stringify(CRM));}catch(e){}
+}
+function actionsDe(compte){return CRM.filter(a=>a.compte===compte);}
+function statutClient(c){
+  const acts=actionsDe(c.compte);
+  const ouverte=acts.find(a=>a.statut==="ouverte");
+  if(c.solde<=1000&&c.fact>0)return{k:"soldé",cl:"vert"};
+  if(ouverte&&ouverte.type==="contentieux")return{k:"contentieux",cl:"rouge"};
+  if(ouverte&&ouverte.type==="promesse")return{k:"promesse "+dmy(ouverte.echeance||""),cl:"or"};
+  if(ouverte)return{k:"relancé le "+dmy(ouverte.date),cl:"bleu"};
+  if(c.solde>500000&&jours(c.derRegl)>(c.seuil||30))return{k:"à relancer",cl:"rouge"};
+  if(c.solde>0)return{k:"en cours",cl:"gris"};
+  return{k:"créditeur",cl:"vert"};
+}
+async function ajouterAction(compte,type){
+  const note=prompt(type==="promesse"?"Montant promis et note ?":"Note (facultatif) :")||"";
+  let ech="";if(type==="promesse"){ech=prompt("Échéance promise (AAAA-MM-JJ) ?")||"";}
+  CRM.unshift({id:Date.now(),compte,type,note,echeance:ech,date:today(),statut:type==="reglee"?"fermée":"ouverte",
+    auteur:document.getElementById("user").value||"?",auteur_slug:slugUser()});
+  await sauverCRM();rendre();const f=document.getElementById("fiche");if(f.classList.contains("on"))ouvrirFiche(compte);
+}
+async function fermerAction(id){const a=CRM.find(x=>x.id===id);if(a){a.statut="fermée";a.ferme_le=today();await sauverCRM();rendre();ouvrirFiche(a.compte);}}
+/* ================= rendu ================= */
+function tab(t){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  for(const s of["dash","clients","reco","fact"])document.getElementById("t-"+s).hidden=(s!==t);}
+function rendre(){if(!D)return;rDash();rClients();rReco();rFact();}
+function topDeb(n){return[...D.liste].sort((a,b)=>b.solde-a.solde).slice(0,n);}
+function rDash(){
+  const L=D.liste;
+  const tot=L.reduce((s,c)=>s+Math.max(0,c.solde),0);
+  const av=L.reduce((s,c)=>s+Math.max(0,-c.solde),0);
+  const deb=L.filter(c=>c.solde>1000).length;
+  const moisC=today().slice(0,7);
+  const factM=L.reduce((s,c)=>s+(c.mens[moisC]||0),0);
+  const encM=L.reduce((s,c)=>s+c.ecr.filter(e=>e.jo!=="RAN"&&e.sens===1&&e.d.slice(0,7)===moisC).reduce((x,e)=>x+e.m,0),0);
+  const aRel=L.filter(c=>statutClient(c).k==="à relancer").length;
+  const buckets=[["0-30 j",0],["31-60 j",0],["61-90 j",0],["+90 j",0]];
+  for(const c of L){if(c.solde<=1000)continue;const j=jours(c.derRegl);
+    const i=j<=30?0:j<=60?1:j<=90?2:3;buckets[i][1]+=c.solde;}
+  const t5=topDeb(6);const mx=Math.max(...t5.map(c=>c.solde),1);
+  document.getElementById("t-dash").innerHTML=`
+  <h1 class="pg">Tableau de bord créances — ${dmy(today())}</h1>
+  <div class="tuiles">
+    <div class="tuile r"><div class="l">Créances totales</div><div class="v">${fmt(tot)} F</div></div>
+    <div class="tuile"><div class="l">Clients débiteurs</div><div class="v">${deb}</div></div>
+    <div class="tuile r"><div class="l">À relancer</div><div class="v">${aRel}</div></div>
+    <div class="tuile b"><div class="l">Facturé ${MOIS[+moisC.slice(5)-1]}.</div><div class="v">${fmt(factM)} F</div></div>
+    <div class="tuile v2"><div class="l">Encaissé ${MOIS[+moisC.slice(5)-1]}.</div><div class="v">${fmt(encM)} F</div></div>
+    <div class="tuile v2"><div class="l">Avances clients</div><div class="v">${fmt(av)} F</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Top débiteurs</h3>${t5.map(c=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="ouvrirFiche('${c.compte}')">
+        <div style="width:170px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${c.nom}</b></div>
+        <div style="flex:1"><div class="bar r"><i style="width:${Math.round(100*c.solde/mx)}%"></i></div></div>
+        <div style="width:105px;text-align:right;font-weight:bold;font-size:12px">${fmt(c.solde)}</div>
+      </div>`).join("")}</div>
+    <div class="card"><h3>Balance âgée (ancienneté du dernier règlement)</h3>
+      ${buckets.map(([l,v])=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:60px;font-size:12px;font-weight:bold">${l}</div>
+        <div style="flex:1"><div class="bar ${l==='+90 j'?'r':''}"><i style="width:${Math.round(100*v/Math.max(tot,1))}%"></i></div></div>
+        <div style="width:120px;text-align:right;font-size:12px;font-weight:bold">${fmt(v)} F</div></div>`).join("")}
+      <div class="note">Règle sur-mesure RPS : chaque client a sa cadence — l'alerte « à relancer » part à 1,5 × la médiane de SES intervalles de règlement (bornée 10-45 j), pas à un seuil unique. La leçon SINOMA : un décrochage se voit en 2 semaines, pas en 6.</div>
+    </div>
+  </div>`;
+}
+let triCol="solde",triAsc=false,filtre="";
+function rClients(){
+  let L=[...D.liste];
+  if(filtre){const f=filtre.toLowerCase();L=L.filter(c=>c.nom.toLowerCase().includes(f)||c.compte.includes(f));}
+  L.sort((a,b)=>{const x=a[triCol],y=b[triCol];return(typeof x==="string"?String(x).localeCompare(String(y)):x-y)*(triAsc?1:-1);});
+  document.getElementById("t-clients").innerHTML=`
+  <h1 class="pg">Clients (${L.length})</h1>
+  <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+    <input class="search" placeholder="Rechercher un client ou un compte…" value="${filtre}" oninput="filtre=this.value;rClients()">
+    <button class="btn" onclick="exportCSV()">⬇ Export CSV</button>
+  </div>
+  <div class="card" style="padding:0;max-height:62vh;overflow:auto"><table>
+    <thead><tr>
+      ${[["compte","COMPTE"],["nom","CLIENT"],["fact","FACTURÉ 2026"],["regl","RÉGLÉ"],["solde","SOLDE"],["derRegl","DERNIER RÈGL."],["derFact","DERN. FACTURE"]].map(([k,l])=>
+      `<th class="${["fact","regl","solde"].includes(k)?"num":""}" style="cursor:pointer" onclick="triCol='${k}';triAsc=(triCol==='${k}'?!triAsc:false);rClients()">${l}</th>`).join("")}
+      <th>TYPOLOGIE</th><th>STATUT</th></tr></thead>
+    <tbody>${L.map(c=>{const s=statutClient(c);return`<tr class="cl" onclick="ouvrirFiche('${c.compte}')">
+      <td>${c.compte}</td><td><b>${c.nom}</b></td>
+      <td class="num">${fmt(c.fact)}</td><td class="num">${fmt(c.regl)}</td>
+      <td class="num" style="font-weight:bold;color:${c.solde>1000?"var(--rouge)":"var(--vert)"}">${fmt(c.solde)}</td>
+      <td>${dmy(c.derRegl)}</td><td>${dmy(c.derFact)}</td>
+      <td><span class="badge gris">${c.typo}</span></td>
+      <td><span class="badge ${s.cl}">${s.k}</span></td></tr>`;}).join("")}</tbody>
+  </table></div>`;
+}
+function rReco(){
+  const L=D.liste;const cols={"À relancer":[],"Relancé":[],"Promesse de paiement":[],"Contentieux":[]};
+  for(const c of L){const s=statutClient(c);
+    if(s.k==="à relancer")cols["À relancer"].push(c);
+    else if(s.k.startsWith("relancé"))cols["Relancé"].push(c);
+    else if(s.k.startsWith("promesse"))cols["Promesse de paiement"].push(c);
+    else if(s.k==="contentieux")cols["Contentieux"].push(c);}
+  for(const k in cols)cols[k].sort((a,b)=>b.solde-a.solde);
+  document.getElementById("t-reco").innerHTML=`
+  <h1 class="pg">Recouvrement — pipeline</h1>
+  <div class="kgrid">${Object.entries(cols).map(([titre,arr])=>`
+    <div class="kcol"><h4>${titre} (${arr.length}) — ${fmt(arr.reduce((s,c)=>s+c.solde,0))} F</h4>
+    ${arr.slice(0,25).map(c=>{const a=actionsDe(c.compte).find(x=>x.statut==="ouverte");return`
+      <div class="kcard" style="border-left-color:${titre==="À relancer"||titre==="Contentieux"?"var(--rouge)":titre==="Promesse de paiement"?"var(--or)":"var(--bleu)"}">
+        <b style="cursor:pointer" onclick="ouvrirFiche('${c.compte}')">${c.nom}</b>
+        <span class="m">${fmt(c.solde)} F</span>
+        <span class="muted">dernier règl. ${dmy(c.derRegl)} (${jours(c.derRegl)>999?"jamais":jours(c.derRegl)+" j"})</span>
+        ${a&&a.note?`<div class="muted">« ${a.note.slice(0,60)} » — ${a.auteur}</div>`:""}
+        ${a&&a.echeance&&a.echeance<today()?`<div style="color:var(--rouge);font-weight:bold;font-size:11px">⚠ promesse échue le ${dmy(a.echeance)}</div>`:""}
+        <div class="a">
+          ${titre==="À relancer"?`<button class="btn" onclick="ajouterAction('${c.compte}','relance')">✆ Relancé</button>`:""}
+          ${titre!=="Promesse de paiement"?`<button class="btn" onclick="ajouterAction('${c.compte}','promesse')">🤝 Promesse</button>`:""}
+          ${titre!=="Contentieux"?`<button class="btn" onclick="ajouterAction('${c.compte}','contentieux')">⚖ Contentieux</button>`:""}
+          ${a?`<button class="btn" onclick="fermerAction(${a.id})">✔ Clore</button>`:""}
+        </div>
+      </div>`;}).join("")||'<div class="muted">Rien ici.</div>'}</div>`).join("")}
+  </div>
+  <div class="note">Les relances, promesses et passages en contentieux sont enregistrés dans 30_CLIENTS\\data\\ (un fichier par utilisateur) : toute l'équipe voit le même pipeline. Une promesse échue non tenue s'affiche en rouge.</div>`;
+}
+function rFact(){
+  const L=D.liste;const mois=[...new Set(L.flatMap(c=>Object.keys(c.mens)))].sort();
+  const enc={},fac={};
+  for(const m of mois){fac[m]=L.reduce((s,c)=>s+(c.mens[m]||0),0);
+    enc[m]=L.reduce((s,c)=>s+c.ecr.filter(e=>e.jo!=="RAN"&&e.sens===1&&e.d.slice(0,7)===m).reduce((x,e)=>x+e.m,0),0);}
+  document.getElementById("t-fact").innerHTML=`
+  <h1 class="pg">Facturation et encaissements — clients à terme, exercice 2026</h1>
+  <div class="card" style="padding:0"><table>
+    <thead><tr><th>MOIS</th><th class="num">FACTURÉ (F)</th><th class="num">ENCAISSÉ (F)</th><th class="num">TAUX</th><th style="width:38%">COUVERTURE</th></tr></thead>
+    <tbody>${mois.map(m=>{const f=fac[m],e=enc[m],t=f?Math.round(100*e/f):0;return`<tr>
+      <td><b>${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}</b></td><td class="num">${fmt(f)}</td><td class="num">${fmt(e)}</td>
+      <td class="num" style="font-weight:bold;color:${t>=90?"var(--vert)":t>=70?"var(--or)":"var(--rouge)"}">${t} %</td>
+      <td><div class="bar ${t<70?"r":""}"><i style="width:${Math.min(t,100)}%"></i></div></td></tr>`;}).join("")}
+    </tbody></table></div>
+  <div class="note">Facturé : ventes gescom du mois (clients à terme, comptes 411 hors clients cash des stations). Encaissé : crédits comptabilisés
+  dans le mois, tous exercices de facturation confondus — le taux dépasse donc parfois 100 % quand un client apure son passif. Le mois en
+  cours est incomplet tant que la saisie n'est pas finie.</div>`;
+}
+/* ================= fiche client ================= */
+function ouvrirFiche(compte){
+  const c=D.C[compte];if(!c)return;const s=statutClient(c);
+  const regls=c.ecr.filter(e=>e.jo!=="RAN"&&e.sens===1);
+  const acts=actionsDe(compte);
+  const mois=Object.keys(c.mens).sort();
+  document.getElementById("fpan").innerHTML=`
+  <div class="fh"><h2>${c.nom}</h2><span class="badge bleu">${c.compte}</span><span class="badge ${s.cl}">${s.k}</span><span class="badge gris">${c.typo}</span>
+    ${c.cadence?`<span class="muted">règle tous les ~${c.cadence} j — alerte décrochage à ${c.seuil} j</span>`:""}
+    <div style="flex:1"></div><button class="btn" onclick="fermerFiche()">✕ Fermer</button></div>
+  <div class="tuiles">
+    <div class="tuile"><div class="l">RAN 2025</div><div class="v" style="font-size:15px">${fmt(c.ran)} F</div></div>
+    <div class="tuile b"><div class="l">Facturé 2026</div><div class="v" style="font-size:15px">${fmt(c.fact)} F</div></div>
+    <div class="tuile v2"><div class="l">Réglé</div><div class="v" style="font-size:15px">${fmt(c.regl)} F</div></div>
+    <div class="tuile ${c.solde>1000?"r":"v2"}"><div class="l">${c.solde>=0?"Solde dû":"Avance"}</div><div class="v" style="font-size:15px">${fmt(Math.abs(c.solde))} F</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Facturation par mois</h3><table><thead><tr><th>Mois</th><th class="num">Montant (F)</th></tr></thead><tbody>
+      ${mois.map(m=>`<tr><td>${MOIS[+m.slice(5)-1]} ${m.slice(0,4)}</td><td class="num">${fmt(c.mens[m])}</td></tr>`).join("")}
+      <tr><td><b>TOTAL</b></td><td class="num"><b>${fmt(c.fact)}</b></td></tr></tbody></table>
+      <div class="note">${c.litres?fmt(c.litres)+" litres enlevés en 2026 · dernière facture "+dmy(c.derFact):""}</div></div>
+    <div class="card"><h3>Règlements — un à un (${regls.length})</h3>
+      <div style="max-height:280px;overflow:auto"><table><thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th class="num">Montant (F)</th></tr></thead><tbody>
+      ${regls.map(e=>`<tr title="${e.intit.replace(/"/g,"&quot;")}"><td>${dmy(e.d)}</td><td>${e.jo}</td><td>${e.pc}</td><td class="num">${fmt(e.m)}</td></tr>`).join("")||"<tr><td colspan=4>Aucun règlement en 2026.</td></tr>"}
+      </tbody></table></div></div>
+  </div>
+  <div class="card"><h3>Suivi recouvrement</h3>
+    <div class="frm">
+      <button class="btn" onclick="ajouterAction('${compte}','relance')">✆ Noter une relance</button>
+      <button class="btn" onclick="ajouterAction('${compte}','promesse')">🤝 Promesse de paiement</button>
+      <button class="btn" onclick="ajouterAction('${compte}','contentieux')">⚖ Contentieux</button>
+      <button class="btn" onclick="ajouterAction('${compte}','note')">✎ Note</button>
+    </div>
+    <div class="tl" style="margin-top:12px">
+      ${acts.map(a=>`<div class="ev"><b>${dmy(a.date)}</b> — ${a.type.toUpperCase()}${a.echeance?" (échéance "+dmy(a.echeance)+")":""}
+        ${a.statut==="ouverte"?'<span class="badge bleu">ouverte</span> <button class="btn" style="font-size:10px;padding:2px 6px" onclick="fermerAction('+a.id+')">clore</button>':'<span class="badge gris">close</span>'}
+        <div class="muted">${a.note||""} — ${a.auteur}</div></div>`).join("")||'<div class="muted">Aucune action enregistrée.</div>'}
+    </div></div>
+  <div class="card"><h3>Dernières livraisons</h3>
+    <div style="max-height:220px;overflow:auto"><table><thead><tr><th>Date</th><th>Pièce</th><th>Bon / réf.</th><th class="num">Litres</th><th class="num">Montant</th><th>Station</th></tr></thead><tbody>
+    ${c.livr.slice(-40).reverse().map(l=>`<tr><td>${dmy(l.d)}</td><td>${l.pc}</td><td>${(l.des||"").slice(0,26)}</td><td class="num">${fmt(l.q)}</td><td class="num">${fmt(l.m)}</td><td>${l.st.slice(0,18)}</td></tr>`).join("")}
+    </tbody></table></div></div>
+  <div class="note">Solde économique = report à nouveau + facturation gescom (+ dépenses payées pour le client) − règlements encaissés.
+  Données : extractions du pont Sage (lecture seule). Pour le document officiel 4 volets, demander la situation via Claude ou le formulaire.</div>`;
+  document.getElementById("fiche").classList.add("on");
+}
+function fermerFiche(){document.getElementById("fiche").classList.remove("on");}
+function exportCSV(){
+  const lignes=[["compte","client","facture_2026","regle","solde","dernier_reglement","derniere_facture","typologie","statut"]];
+  for(const c of D.liste)lignes.push([c.compte,c.nom,Math.round(c.fact),Math.round(c.regl),Math.round(c.solde),c.derRegl,c.derFact,c.typo,statutClient(c).k]);
+  const csv=lignes.map(l=>l.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+csv],{type:"text/csv"}));
+  a.download="CRM CREANCES - EXPORT "+today()+".csv";a.click();
+}
+tab('dash');
+document.getElementById("t-dash").innerHTML='<div class="card"><h3>Bienvenue</h3><p style="font-size:13px;line-height:1.6">Clique sur <b>📁 Dossier REPORTING</b> et choisis le dossier <b>REPORTING CLAUDE RPS</b> (une seule fois par session).<br>L\'application lit les extractions quotidiennes du pont Sage — lecture seule, rien ne sort du dossier.<br>Renseigne ton nom en haut pour signer tes relances.</p></div>';
+</script>
+</body>
+</html>
