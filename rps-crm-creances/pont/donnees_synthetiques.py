@@ -78,8 +78,8 @@ def construire():
     d = date(2026, 1, 6); k = 0
     while d <= date(2026, 9, 12):
         k += 1
-        j.ecriture("41120010", d, random.choice(["NITA", "CAINIT", "NITA"]), f"NT{k}", f"N°{100000+k}", "VERS NITA SEYDOU", 1, 1_500 * PU_SUP * (1 if k % 3 else 2))
-        d += timedelta(days=random.choice([4, 5, 6]))
+        j.ecriture("41120010", d, random.choice(["NITA", "CAINIT", "NITA"]), f"NT{k}", f"N°{100000+k}", "VERS NITA SEYDOU", 1, 1_500 * PU_SUP * 6 / 7)
+        d += timedelta(days=5)
     # 4. Transporteur au camion (RAN créditeur, compte légèrement créditeur à la fin)
     j.client("41120020", "OULD TRANSPORT (au camion)")
     j.ecriture("41120020", date(2026, 1, 1), "RAN", "RAN4", "", "REPORT A NOUVEAU", 1, 31_300)
@@ -89,7 +89,10 @@ def construire():
         k += 1
         j.ecriture("41120020", d, "CAISSE", f"CS{k}", f"AB-{4900+k}", f"REGLT CAMION AB-{4900+k}", 1, 3000 * PU_GAS)
         d += timedelta(days=7)
-    j.ecriture("41120020", date(2026, 9, 10), "CAISSE", "CS999", "", "AVANCE SUR PROCHAIN CAMION", 1, 47_950 + 31_300 - 31_300)
+    # avance finale calibrée pour finir créditeur de 47 950 (clone du témoin « créditeur 47 950 »)
+    consomme = sum(float(l[6]) for l in j.livr if l[0] == "41120020")
+    regle = sum(float(e[7]) for e in j.ecr if e[0] == "41120020" and e[2] != "RAN" and e[6] == 1)
+    j.ecriture("41120020", date(2026, 9, 10), "CAISSE", "CS999", "", "AVANCE SUR PROCHAIN CAMION", 1, consomme - 31_300 - regle + 47_950)
     # 5. BV / Bénin : un seul règlement
     j.client("41150003", "BV-TRANSIT BENIN")
     livraisons_mensuelles(j, "41150003", 3, 5000, PU_GAS, "05-31-RPS GAYA FRONTIERE")
@@ -110,10 +113,13 @@ def construire():
     livraisons_mensuelles(j, "41120050", 4, 2000, PU_GAS, "04-15-RPS DOSSO")
     for k, (d, payeur, m) in enumerate([(date(2026, 2, 10), "ONG A", 3_000_000), (date(2026, 4, 12), "MAIRIE B", 2_500_000), (date(2026, 6, 15), "ONG A", 3_500_000), (date(2026, 8, 20), "PROJET C", 4_000_000)]):
         j.ecriture("41120050", d, "BQBOA", f"COL{k}", payeur, f"VIREMENT {payeur}", 1, m)
+    # 8bis. « Réglé via » : SINOMA-like -> le collectif règle 500 000 pour le compte de GARAGE SOLDE (OD tracée sur les deux comptes)
+    j.ecriture("41120050", date(2026, 7, 3), "OD", "OD13", "", "REGLEMENT GARAGE SOLDE REMIS PAR COLLECTIF EN ESPECE", 0, 500_000)
+    j.ecriture("41110060", date(2026, 7, 3), "OD", "OD13", "", "REGLEMENT VIA COLLECTIF ONG (OD 13)", 1, 500_000)
     # 9. Client soldé (tout réglé)
     j.client("41110060", "GARAGE SOLDE")
     livraisons_mensuelles(j, "41110060", 2, 1000, PU_SUP, "01-12-RPS NIAMEY ROUTE FILINGUE", ar="SUP", jusqua=date(2026, 3, 31))
-    j.ecriture("41110060", date(2026, 4, 5), "BQBOA", "GS1", "", "SOLDE COMPTE", 1, 6 * 1000 * PU_SUP)
+    j.ecriture("41110060", date(2026, 4, 5), "BQBOA", "GS1", "", "SOLDE COMPTE", 1, 6 * 1000 * PU_SUP - 500_000)
     # 10. Petit compte inactif sans facturation
     j.client("41110070", "CLIENT INACTIF")
     # Pièce mal datée (piège n°7) : ignorée par le pont (DO_Date >= 20241201) — on ne la génère pas.
@@ -127,7 +133,11 @@ def attendus(j):
         c, d, jo, sens, m = e[0], e[1], e[2], e[6], float(e[7])
         if jo == "RAN": C[c]["ran"] += m if sens == 0 else -m
         elif sens == 1:
-            C[c]["regl"] += m; C[c]["nb"] += 1; C[c]["der"] = max(C[c]["der"], d)
+            C[c]["regl"] += m
+            # règle CRM (revue d'architecture) : une régularisation (OD « REGUL… ») est neutre sur le solde mais
+            # n'est ni un règlement pour la cadence, ni un « dernier règlement »
+            if not (jo == "OD" and "REGUL" in e[5].upper()):
+                C[c]["nb"] += 1; C[c]["der"] = max(C[c]["der"], d)
         else: C[c]["deb"] += m
     for c in C: C[c]["solde"] = C[c]["ran"] + C[c]["fact"] + C[c]["deb"] - C[c]["regl"]
     return C
@@ -156,11 +166,12 @@ if __name__ == "__main__":
     if a.sql:
         def jl(x): return "$j$" + json.dumps(x, ensure_ascii=False) + "$j$::jsonb"
         with open(a.sql, "w", encoding="utf-8") as f:
-            f.write(f"SELECT pont_debut_extraction('{dstr(DATE_EXTRACTION)}', 'fichiers') AS ext \\gset\n")
-            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'clients', {jl(j.clients)});\n")
-            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'facturation', {jl(j.facturation())});\n")
-            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'ecritures', {jl(j.ecr)});\n")
-            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'livraisons', {jl(j.livr)});\n")
+            att = {"clients": len(j.clients), "facturation": len(j.facturation()), "ecritures": len(j.ecr), "livraisons": len(j.livr)}
+            f.write(f"SELECT pont_debut_extraction('{dstr(DATE_EXTRACTION)}', 'fichiers', NULL, 'jeu synthétique', {jl(att)}) AS ext \\gset\n")
+            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'clients', {jl(j.clients)}, 1);\n")
+            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'facturation', {jl(j.facturation())}, 1);\n")
+            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'ecritures', {jl(j.ecr)}, 1);\n")
+            f.write(f"SELECT pont_ajouter_lignes(:'ext', 'livraisons', {jl(j.livr)}, 1);\n")
             f.write("SELECT pont_activer_extraction(:'ext');\n")
             f.write("CREATE TEMP TABLE attendus (compte text, solde numeric, ran numeric, regle numeric, nb int);\n")
             for c, v in attendus(j).items():
