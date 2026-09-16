@@ -123,7 +123,7 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
               <span className="m sc">{fmtF(k.balance_facturation[cle])}</span>
             </div>
           ))}
-          <div className="note">Règle sur-mesure RPS : chaque client a sa cadence — l&apos;alerte « à relancer » part à 1,5 × la médiane de SES intervalles de règlement (bornée 10-45 j), pas à un seuil unique. La leçon SINOMA : un décrochage se voit en 2 semaines, pas en 6.</div>
+          <div className="note">Règle sur-mesure RPS : chaque client a sa cadence — l&apos;alerte « à relancer » part à 1,5 × la médiane de SES intervalles de règlement (bornée 10-45 j), pas à un seuil unique. La leçon du témoin T2 : un décrochage se voit en 2 semaines, pas en 6.</div>
         </div>
       </div>
 

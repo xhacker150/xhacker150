@@ -7,3 +7,9 @@ out/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Annexe confidentielle de recette (chiffres réels) : jamais versionnée
+recette/temoins.json
+sql_out/
+pont/.env
+pont/*.log*

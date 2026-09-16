@@ -83,7 +83,7 @@ BEGIN
   RAISE NOTICE 'OK 3 — remise multi-clients, réglé via';
 END $$;
 
--- 4. Cadence individuelle (leçon SINOMA) et bouclage du classement top 10
+-- 4. Cadence individuelle (leçon du témoin T2) et bouclage du classement top 10
 DO $$
 DECLARE c vue_clients; s NUMERIC; t NUMERIC; tb JSONB;
 BEGIN

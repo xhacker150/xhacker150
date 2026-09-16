@@ -3,6 +3,7 @@
 
 **Maître d'ouvrage :** RISSA PETROLEUM SERVICE (RPS) — Direction Générale, Niamey, Niger
 **Version :** 2.1 — 16/09/2026 (v2.0 + chapitre « sur-mesure RPS » tiré des dossiers réels)
+**Copie de travail anonymisée** (règle 8 de `CLAUDE.md` : aucune donnée réelle dans le dépôt) : les clients sont désignés par des témoins T1…T14 et les chiffres opposables du §3.5 sont dans l'annexe confidentielle hors dépôt. Le CDC contractuel intégral fait foi.
 **Rattachement :** dossier CDC-00 (cadrage et règles métier), CDC-02 (GED), CDC-03 (messagerie), CDC-04 (hébergement), ordre de mission OM-2026-01.
 **Maquette de référence :** `30_CLIENTS/RPS CRM CREANCES.html` (livrée, fonctionnelle) — elle fait foi pour l'ergonomie de base et les règles de calcul.
 
@@ -22,7 +23,7 @@ quelle promesse — et la preuve de tout.
 | Indicateur | Aujourd'hui (référence 08/09/2026) | Cible |
 |---|---|---|
 | DSO (délai moyen d'encaissement, clients à terme) | à établir en recette | − 20 % |
-| Créances > 90 jours sans règlement | SOTCO 282,5 M à lui seul | < 5 % de l'encours |
+| Créances > 90 jours sans règlement | T9 282,5 M à lui seul | < 5 % de l'encours |
 | Clients « décrochés » (> 30 j sans règlement, solde > 500 k) non relancés | non mesuré | 0 (relance sous 48 h) |
 | Promesses de paiement tenues | non mesuré | > 70 % |
 | Temps de production d'une situation client officielle | minutes (via Claude) | < 10 s (bouton dans la fiche) |
@@ -54,17 +55,17 @@ l'application — pas des exemples.**
 
 | Typologie | Dossiers réels qui la définissent | Traitement dans le CRM |
 |---|---|---|
-| **Grand compte à remises** | Rimbo Transport (2,24 Mds facturés, 36 règlements par remises de chèques 18-138 M, ECOBANK/BOA) ; SINOMA CARGO (536,8 M, remises 25-73 M, ~2/mois) ; ETS Oudou Younoussa (règlements NITA jusqu'à 272 M d'un coup) | Suivi de **cadence individuelle** (§3.2), relance par relevé et rendez-vous, jamais de petites relances ; interlocuteur attitré |
-| **Payeur au fil de l'eau (mobile money)** | Moussa Seydalamine : 22 règlements de 1 à 10 M, majoritairement CAINIT/NITA, solde quasi nul en permanence | Aucune relance tant que la dérive d'encours reste sous 2 semaines de consommation ; suivi de dérive, pas de harcèlement |
-| **Transporteur au camion** | Yahaya Ould Ahmed : 39 règlements en 2026, un par consommation, camion par camion (AB-4909, AG-4905…), compte créditeur ; Ibrahim Ahmed-Maradi : règle « au franc près » sur relevé | Rapprochement bon ↔ règlement ; relevé hebdomadaire automatique ; tout écart > 1 semaine de bons se signale |
-| **Compte BV / Bénin** | Série 41150001-18 ; BV-RPS BENIN : 50,6 M facturés, UN règlement en 9 mois (bons « SOS LOGISTIQUE » servis à Gaya) ; JMD et SINOMA règlent parfois par « décharge » Bénin (OD) | Règle dure : **pas de nouveau lot de bons sans règlement du précédent** ; le CRM bloque la typologie en rouge tant que le ratio bons servis / réglés dépasse le seuil DG |
-| **Compte muet** | SOTCO : 282,5 M dus, ZÉRO règlement en 2026, et 2,0 M de dépenses payées pour son compte par les caisses stations | Passage automatique en pré-contentieux ; le solde intègre les **débits hors RAN** (dépenses payées pour le client) — spécificité RPS qu'aucun CRM du commerce ne connaît |
-| **Créditeur (avance)** | Oudou Younoussa (jusqu'à 357,6 M d'avance), Yahaya (47 950 F), Moussa (ponctuellement) | Interdiction de relance ; priorité de service ; alerte si l'avance fond plus vite que la consommation ne le justifie |
-| **Compte collectif à payeurs multiples** | SSN (41120050) : sur un même compte, SSN, bons NIGELEC Doutchi, World Vision, ONG — des payeurs différents | Étiquette **payeur** sur chaque règlement et chaque bon ; soldes par payeur à l'intérieur du compte |
+| **Grand compte à remises** | T1 (2,24 Mds facturés, 36 règlements par remises de chèques 18-138 M, ECOBANK/BOA) ; T2 (536,8 M, remises 25-73 M, ~2/mois) ; T3 (règlements NITA jusqu'à 272 M d'un coup) | Suivi de **cadence individuelle** (§3.2), relance par relevé et rendez-vous, jamais de petites relances ; interlocuteur attitré |
+| **Payeur au fil de l'eau (mobile money)** | T4 : 22 règlements de 1 à 10 M, majoritairement CAINIT/NITA, solde quasi nul en permanence | Aucune relance tant que la dérive d'encours reste sous 2 semaines de consommation ; suivi de dérive, pas de harcèlement |
+| **Transporteur au camion** | T5 : 39 règlements en 2026, un par consommation, camion par camion (AB-4909, AG-4905…), compte créditeur ; T6 : règle « au franc près » sur relevé | Rapprochement bon ↔ règlement ; relevé hebdomadaire automatique ; tout écart > 1 semaine de bons se signale |
+| **Compte BV / Bénin** | Série 41150001-18 ; T7 (BV) : 50,6 M facturés, UN règlement en 9 mois (bons « SOS LOGISTIQUE » servis à Gaya) ; T8 et T2 règlent parfois par « décharge » Bénin (OD) | Règle dure : **pas de nouveau lot de bons sans règlement du précédent** ; le CRM bloque la typologie en rouge tant que le ratio bons servis / réglés dépasse le seuil DG |
+| **Compte muet** | T9 : 282,5 M dus, ZÉRO règlement en 2026, et 2,0 M de dépenses payées pour son compte par les caisses stations | Passage automatique en pré-contentieux ; le solde intègre les **débits hors RAN** (dépenses payées pour le client) — spécificité RPS qu'aucun CRM du commerce ne connaît |
+| **Créditeur (avance)** | T3 (jusqu'à 357,6 M d'avance), T5 (47 950 F), T4 (ponctuellement) | Interdiction de relance ; priorité de service ; alerte si l'avance fond plus vite que la consommation ne le justifie |
+| **Compte collectif à payeurs multiples** | T10 (4112xxxx) : sur un même compte, T10, bons du payeur A, payeur B, ONG — des payeurs différents | Étiquette **payeur** sur chaque règlement et chaque bon ; soldes par payeur à l'intérieur du compte |
 
-### 3.2 L'alerte par cadence individuelle (la leçon SINOMA)
+### 3.2 L'alerte par cadence individuelle (la leçon T2)
 
-SINOMA a décroché le 28/07 ; avec un seuil générique « 30 jours sans
+T2 a décroché le 28/07 ; avec un seuil générique « 30 jours sans
 règlement », l'alerte serait tombée fin août — 24 M de consommation plus tard.
 Sa cadence réelle était de ~2 règlements/mois : la rupture était donc visible
 dès le 12-15 août. **Règle produit :** pour chaque client, le CRM calcule la
@@ -75,15 +76,15 @@ Le seuil générique (solde > 500 000 F et > 30 j) reste le filet de sécurité.
 ### 3.3 Les particularités comptables RPS que le CRM doit savoir lire
 
 - **Une remise de chèques peut couvrir plusieurs clients** (pièce BQECOB 2984
-  du 02/02 : Rimbo 63 M + SINOMA 37,2 M) → une pièce de règlement est
+  du 02/02 : T1 63 M + T2 37,2 M) → une pièce de règlement est
   affectable à plusieurs comptes.
-- **Un client peut régler pour un autre** (« règlement SINOMA remis à DIDI en
+- **Un client peut régler pour un autre** (« règlement T2 remis à T11 en
   espèce », OD 13) → champ « réglé via » tracé.
 - **Des écritures de RÉGULARISATION** corrigent des règlements antérieurs
-  (SINOMA OD 17283) → jamais compter deux fois ; rattachement à la pièce
+  (T2 OD 17283) → jamais compter deux fois ; rattachement à la pièce
   d'origine.
-- **Le RAN peut être créditeur** (Yahaya +31 300) comme débiteur (Rimbo
-  972,6 M) et il est parfois saisi en cours d'année (RAN SINOMA passé le
+- **Le RAN peut être créditeur** (T5 +31 300) comme débiteur (T1
+  972,6 M) et il est parfois saisi en cours d'année (RAN T2 passé le
   26/03) → le solde d'ouverture vient du journal RAN, jamais d'une hypothèse.
 - **La facturation du mois en cours est toujours en retard de saisie**
   (constaté : août saisi jusqu'au 15/08 au 08/09) → tout écran affiche « saisi
@@ -98,28 +99,24 @@ Le seuil générique (solde > 500 000 F et > 30 j) reste le filet de sécurité.
 
 ### 3.4 Les seuils de départ, calibrés sur le portefeuille réel
 
-- Segments d'encours (constatés au 08/09) : **> 100 M** (Rimbo 993,7 M à
-  l'arrêté, SINOMA 101,5 M — revue hebdomadaire DG) · **25-100 M** (SOTCO
-  282,5 M déjà en anomalie, BV-Bénin 37,9 M, LABAN 34,1 M, Jainata 30,9 M —
+- Segments d'encours (constatés au 08/09) : **> 100 M** (T1 993,7 M à
+  l'arrêté, T2 101,5 M — revue hebdomadaire DG) · **25-100 M** (T9
+  282,5 M déjà en anomalie, BV-Bénin 37,9 M, T13 34,1 M, T14 30,9 M —
   revue bimensuelle) · **5-25 M** (revue mensuelle) · **< 5 M** (séquence
   automatique seule).
 - Alerte grosse remise attendue : un grand compte à remises sans règlement
   depuis 1,5 × sa cadence (§3.2).
 - Promesse : montant minimal = 50 % du solde exigible, sinon plan de paiement.
-- Le 11e client (Jainata au 31/07) était à 70 000 F du 10e : les classements
+- Le 11e client (T14 au 31/07) était à 70 000 F du 10e : les classements
   du CRM s'arrêtent toujours au **dernier mois entièrement facturé**.
 
 ### 3.5 Jeu de recette sur dossiers réels (chiffres opposables)
 
-La recette du lot A se fait sur ces témoins, valeurs à retrouver **au franc**
-aux mêmes dates d'arrêté : DIDI 51 322 716 (20/08) · Boubacar Ahmadou
-9 003 496 (20/08) · Yahaya Ould Ahmed **créditeur** 47 950 (20/08) · SINOMA
-101 476 896 (08/09) · BV-RPS BENIN 37 862 185 (08/09) · Jainata 30 921 901
-(arrêté 31/07 + règlement du 17/08) · SOTCO 282 509 928 dont 2 044 100 de
-dépenses payées (20/08) · Oudou Younoussa créditeur 333 719 370 (20/08) ·
-somme des 10 premiers clients = solde cumulé du classement (bouclage prouvé
-le 20/08 : 1 364 033 696).
-
+La recette du lot A se fait sur des témoins réels dont les soldes **au franc**, aux dates d'arrêté exactes, figurent
+dans l'**annexe confidentielle §3.5** conservée hors dépôt (fichier `recette/temoins.json`, ignoré par git — voir
+`README.md`, section « Recette »). Témoins : T11 et T12 (arrêté 20/08), T5 **créditeur** (20/08), T2 et T7 (08/09),
+T14 (arrêté 31/07 + règlement du 17/08), T9 dont les dépenses payées pour son compte (20/08), T3 **créditeur**
+(20/08), et le bouclage « somme des 10 premiers clients = solde cumulé du classement » (20/08).
 
 ## 4. Utilisateurs et rôles
 
@@ -278,7 +275,7 @@ GED (CDC-02) pour les documents ; messagerie interne / assistant de données
 | **D** | Déploiement VPS (CDC-04), formation (DG, recouvrement, compta), documentation, transfert | 2 semaines |
 
 **Recette (extraits des cas de test) :** (1) chiffres API = fichiers au franc
-sur 10 clients témoins dont SINOMA CARGO et un compte soldé ; (2) un règlement
+sur 10 clients témoins dont T2 et un compte soldé ; (2) un règlement
 saisi en compta sort la carte du pipeline en moins d'une heure ; (3) promesse
 échue non tenue = alerte J+1 au DG ; (4) tentative d'écriture SQL depuis
 l'API = échec par droits de base, tracé ; (5) coupure Sage simulée = bandeau

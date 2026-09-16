@@ -113,7 +113,7 @@ def construire():
     livraisons_mensuelles(j, "41120050", 4, 2000, PU_GAS, "04-15-RPS DOSSO")
     for k, (d, payeur, m) in enumerate([(date(2026, 2, 10), "ONG A", 3_000_000), (date(2026, 4, 12), "MAIRIE B", 2_500_000), (date(2026, 6, 15), "ONG A", 3_500_000), (date(2026, 8, 20), "PROJET C", 4_000_000)]):
         j.ecriture("41120050", d, "BQBOA", f"COL{k}", payeur, f"VIREMENT {payeur}", 1, m)
-    # 8bis. « Réglé via » : SINOMA-like -> le collectif règle 500 000 pour le compte de GARAGE SOLDE (OD tracée sur les deux comptes)
+    # 8bis. « Réglé via » (témoin T2) : le collectif règle 500 000 pour le compte de GARAGE SOLDE (OD tracée sur les deux comptes)
     j.ecriture("41120050", date(2026, 7, 3), "OD", "OD13", "", "REGLEMENT GARAGE SOLDE REMIS PAR COLLECTIF EN ESPECE", 0, 500_000)
     j.ecriture("41110060", date(2026, 7, 3), "OD", "OD13", "", "REGLEMENT VIA COLLECTIF ONG (OD 13)", 1, 500_000)
     # 9. Client soldé (tout réglé)

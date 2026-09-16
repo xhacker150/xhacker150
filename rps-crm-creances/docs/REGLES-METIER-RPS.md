@@ -1,5 +1,7 @@
 # RÈGLES MÉTIER RPS — référentiel condensé pour le développeur
 
+*Copie anonymisée : les clients réels sont désignés par des témoins T1…T14 (voir CDC-05, annexe confidentielle hors dépôt).*
+
 Extrait opposable du référentiel interne (plugin rps-gestion, validé par le DG
 entre août et septembre 2026). En cas de conflit avec toute autre source, ce
 document et le CDC-05 font foi.
@@ -18,7 +20,7 @@ Serveur `RPS-SERVER\SAGE100`, authentification Windows, **lecture seule**.
 
 - `411xxxxx` hors `41180xxx` : clients à terme (le périmètre du CRM).
   `41180xxx` = clients cash des stations (suffixe = n° de station) — exclus.
-  `41150001-…` : série des comptes BV (bons de valeur), dont BV-RPS BENIN.
+  `41150001-…` : série des comptes BV (bons de valeur), dont T7 (BV).
 - Journal `RAN` : report à nouveau (peut être débiteur OU créditeur, parfois
   saisi en cours d'année). Tout autre journal, sens crédit = règlement ;
   sens débit hors RAN = dépense payée pour le client (s'ajoute à sa dette).
@@ -57,13 +59,13 @@ recalculer depuis les montants, jamais coder un prix en dur.
 
 1. Une remise de chèques peut couvrir **plusieurs clients** (même pièce,
    plusieurs lignes sur des comptes différents).
-2. Un client peut régler **pour un autre** (« SINOMA remis à DIDI en espèce »).
+2. Un client peut régler **pour un autre** (« T2 remis à T11 en espèce »).
 3. Des écritures « RÉGULARISATION » corrigent un règlement antérieur : ne pas
    compter deux fois.
 4. La facturation du mois en cours est **toujours en retard de saisie** —
    afficher « saisi jusqu'au JJ/MM », ne jamais comparer un mois non clos.
 5. Certains comptes sont **collectifs** (plusieurs payeurs sur un compte, ex.
-   bons NIGELEC + ONG sur un même 41120xxx) : prévoir une étiquette payeur.
+   bons payeur A + ONG sur un même 41120xxx) : prévoir une étiquette payeur.
 6. Les intitulés d'écritures contiennent les références utiles (« N°… »,
    « VERS … ») : les parser avec tolérance (fautes de frappe fréquentes).
 7. 6 pièces gescom mal datées (2002/2012/2023, montant nul) traînent en base :
@@ -72,7 +74,7 @@ recalculer depuis les montants, jamais coder un prix en dur.
 ## 6. Typologies clients et cadence (paramétrage de départ)
 
 Voir CDC-05 §3.1-3.2. Résumé : grand compte à remises / fil de l'eau mobile
-money / transporteur au camion / BV-Bénin (pas de nouveau lot de bons sans
+money / transporteur au camion / T7 (pas de nouveau lot de bons sans
 règlement du précédent) / compte muet (pré-contentieux) / créditeur (aucune
 relance) / collectif. Alerte décrochage = 1,5 × médiane des intervalles de
 règlement du client, bornée 10-45 jours ; filet générique 500 k / 30 j.
