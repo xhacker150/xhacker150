@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { exigerProfil, lireParametres } from "@/lib/session";
-import { LIBELLES_ROLE, LIBELLES_CANAL, formatDateHeure } from "@/lib/format";
+import { LIBELLES_ROLE, LIBELLES_CANAL, formatDateHeure, formatDate } from "@/lib/format";
 import { Messages } from "@/components/Messages";
 import { Badge } from "@/components/Badge";
-import { enregistrerSeuils, modifierUtilisateur, enregistrerModele, supprimerModele } from "./actions";
+import { enregistrerSeuils, modifierUtilisateur, enregistrerModele, supprimerModele, enregistrerStation } from "./actions";
 import type { Profil, ModeleMessage } from "@/lib/types";
 
 const VARIABLES = "{{client}} {{compte}} {{solde}} {{avance}} {{facture_exercice}} {{regle}} {{dernier_reglement}} {{jours}} {{date}} {{date_donnees}} {{societe}} {{signature}}";
@@ -16,10 +16,12 @@ export default async function PageParametres({ searchParams }: { searchParams: P
   const dg = profil.role === "dg";
   const p = await lireParametres();
   const supabase = await createClient();
-  const [{ data: utilisateurs }, { data: modeles }, { data: audit }] = await Promise.all([
+  const [{ data: utilisateurs }, { data: modeles }, { data: audit }, { data: stations }, { data: sante }] = await Promise.all([
     onglet === "utilisateurs" ? supabase.from("profils").select("*").order("nom") : Promise.resolve({ data: [] }),
     onglet === "modeles" ? supabase.from("modeles_messages").select("*").order("niveau", { nullsFirst: false }) : Promise.resolve({ data: [] }),
     onglet === "journal" ? supabase.from("audit").select("*").order("quand", { ascending: false }).limit(200) : Promise.resolve({ data: [] }),
+    onglet === "stations" ? supabase.from("stations").select("*").order("numero") : Promise.resolve({ data: [] }),
+    onglet === "exploitation" && dg ? supabase.rpc("controle_sante") : Promise.resolve({ data: null }),
   ]);
 
   return (
@@ -28,7 +30,7 @@ export default async function PageParametres({ searchParams }: { searchParams: P
       <Messages succes={sp.succes} erreur={sp.erreur} />
       {!dg && <div className="info">Lecture seule : le paramétrage est réservé à la Direction générale.</div>}
       <nav className="onglets" style={{ position: "static", marginBottom: 12, borderRadius: 8 }}>
-        {[["general", "Seuils & société"], ["sequences", "Séquences de relance"], ["modeles", "Modèles de messages"], ["utilisateurs", "Utilisateurs"], ["journal", "Journal d'audit"]].map(([k, l]) => (
+        {[["general", "Seuils & société"], ["sequences", "Séquences de relance"], ["modeles", "Modèles de messages"], ["utilisateurs", "Utilisateurs"], ["stations", "Stations"], ["exploitation", "Exploitation"], ["journal", "Journal d'audit"]].map(([k, l]) => (
           <Link key={k} href={`/parametres?onglet=${k}`} className={onglet === k ? "on" : ""}>{l}</Link>
         ))}
       </nav>
@@ -47,6 +49,12 @@ export default async function PageParametres({ searchParams }: { searchParams: P
               <label className="ch">N3 ferme au-delà de (j)<input type="number" name="n3_jours" defaultValue={p.seuils.n3_jours} disabled={!dg} /></label>
               <label className="ch">N4 pré-contentieux au-delà de (j)<input type="number" name="n4_jours" defaultValue={p.seuils.n4_jours} disabled={!dg} /></label>
               <label className="ch">Péremption des données (j)<input type="number" name="peremption_donnees_jours" defaultValue={p.seuils.peremption_donnees_jours} disabled={!dg} /></label>
+              <label className="ch">Règlement « couvrant » après relance (% du solde)<input type="number" name="part_min_reglement_couvrant" defaultValue={p.seuils.part_min_reglement_couvrant} disabled={!dg} /></label>
+              <label className="ch">Tolérance promesse (j) avant « non tenue »<input type="number" name="tolerance_promesse_jours" defaultValue={p.seuils.tolerance_promesse_jours} disabled={!dg} /></label>
+              <label className="ch">BV : ratio bons servis / réglés maximal<input type="number" step="0.1" name="bv_ratio_max" defaultValue={p.seuils.bv_ratio_max} disabled={!dg} /></label>
+              <label className="ch">Journaux mobile money (codes Sage, virgule)<input name="journaux_mobile_money" defaultValue={(p.seuils.journaux_mobile_money ?? []).join(", ")} disabled={!dg} /></label>
+              <label className="ch">Stagnation d&apos;une carte (j)<input type="number" name="stagnation_jours" defaultValue={p.seuils.stagnation_jours} disabled={!dg} /></label>
+              <label className="ch">Exercice (AAAA, vide = année de l&apos;extraction)<input name="exercice" defaultValue={p.seuils.exercice ?? ""} placeholder="2026" disabled={!dg} /></label>
             </div>
             <div className="note">Alerte décrochage = coefficient × médiane des intervalles de règlement du client, bornée entre les deux bornes. Le filet générique s&apos;applique aux clients sans cadence établie (moins de 3 règlements).</div>
           </div>
@@ -62,6 +70,16 @@ export default async function PageParametres({ searchParams }: { searchParams: P
               <label className="ch">Téléphone<input name="societe_telephone" defaultValue={p.societe.telephone} disabled={!dg} /></label>
               <label className="ch">E-mail<input name="societe_email" defaultValue={p.societe.email} disabled={!dg} /></label>
               <label className="ch">Site<input name="societe_site" defaultValue={p.societe.site} disabled={!dg} /></label>
+            </div>
+          </div>
+          <div className="card">
+            <h3>Exploitation (patrons repris du workflow RPS)</h3>
+            <div className="frm">
+              <label className="ch">Fuseau horaire<input name="fuseau" defaultValue={p.exploitation.fuseau} disabled={!dg} /></label>
+              <label className="ch">Heure du pont<input name="heure_pont" defaultValue={p.exploitation.heure_pont} disabled={!dg} /></label>
+              <label className="ch">Expéditeur des e-mails<input name="expediteur" defaultValue={p.exploitation.expediteur} placeholder="RPS CRM Créances <recouvrement@rps.ne>" disabled={!dg} /></label>
+              <label className="ch">Administrateurs alertés (e-mails, virgule)<input name="admins_alerte" defaultValue={(p.exploitation.admins_alerte ?? []).join(", ")} disabled={!dg} /></label>
+              <label className="ch">Domaines destinataires autorisés (virgule, vide = tous)<input name="domaines_email" defaultValue={(p.exploitation.domaines_email ?? []).join(", ")} placeholder="rps.ne" disabled={!dg} /></label>
             </div>
             {dg && <div className="mt"><button className="btn pr" type="submit">Enregistrer et recalculer</button></div>}
           </div>
@@ -127,15 +145,52 @@ export default async function PageParametres({ searchParams }: { searchParams: P
                   <td colSpan={3}>
                     <form action={modifierUtilisateur.bind(null, u.id)} className="frm" style={{ marginTop: 0 }}>
                       <select name="role" defaultValue={u.role} disabled={!dg}>{Object.entries(LIBELLES_ROLE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+                      <input name="email_contact" defaultValue={u.email_contact ?? ""} placeholder="e-mail de contact réel" disabled={!dg} style={{ width: 200 }} />
                       <label className="ch" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><input type="checkbox" name="actif" value="1" defaultChecked={u.actif} disabled={!dg || u.id === profil.id} /> actif</label>
-                      {dg && u.id !== profil.id && <button className="btn sm" type="submit">Enregistrer</button>}
+                      <label className="ch" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><input type="checkbox" name="recap_quotidien" value="1" defaultChecked={u.recap_quotidien ?? false} disabled={!dg} /> récap quotidien</label>
+                      {dg && <button className="btn sm" type="submit">Enregistrer</button>}
                     </form>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table></div>
-          <div className="note" style={{ padding: "0 14px 12px" }}>DG : tout voir, tout paramétrer, contentieux, limites. Chargé de recouvrement : relances, promesses, notes, tâches, chargement des fichiers. Comptabilité : lecture + pointage des règlements (payeur, liens). Exploitation et contrôle de gestion : lecture et exports. Les comptes se créent depuis la page de connexion ou le tableau de bord Supabase (Authentication).</div>
+          <div className="note" style={{ padding: "0 14px 12px" }}>DG : tout voir, tout paramétrer, mise en demeure, contentieux, limites. Chargé de recouvrement : relances, promesses, notes, tâches, chargement des fichiers. Comptabilité : lecture + pointage des règlements (payeur, liens) + situation officielle. Exploitation et contrôle de gestion : lecture et exports. Les comptes se créent dans Supabase (Authentication → Users, avec l&apos;e-mail réel de la personne) : ils arrivent ici <b>inactifs</b> et sont activés par le DG. Pas d&apos;inscription libre.</div>
+        </div>
+      )}
+
+      {onglet === "stations" && (
+        <div className="card p0">
+          <h3>Référentiel des stations <small>alimenté automatiquement depuis les dépôts de chaque extraction (« XX-nn-RPS … ») — le numéro fait foi</small></h3>
+          <div className="tbl"><table>
+            <thead><tr><th>N°</th><th>Libellé</th><th className="opt">Intitulé du dépôt Sage</th><th>Zone</th><th>Actif</th><th /></tr></thead>
+            <tbody>
+              {(stations ?? []).length === 0 && <tr><td colSpan={6} className="muted">Aucune station : chargez une extraction.</td></tr>}
+              {(stations ?? []).map((st) => (
+                <tr key={st.numero}><td><b>{st.numero}</b></td>
+                  <td colSpan={5}><form action={enregistrerStation.bind(null, st.numero)} className="frm" style={{ marginTop: 0 }}>
+                    <input name="libelle" defaultValue={st.libelle ?? ""} disabled={!dg} /><span className="muted opt">{st.intitule_depot}</span>
+                    <input name="zone" defaultValue={st.zone ?? ""} placeholder="zone" disabled={!dg} style={{ width: 120 }} />
+                    <label className="ch" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}><input type="checkbox" name="actif" value="1" defaultChecked={st.actif} disabled={!dg} /> active</label>
+                    {dg && <button className="btn sm" type="submit">Enregistrer</button>}
+                  </form></td></tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      )}
+
+      {onglet === "exploitation" && (
+        <div className="card">
+          <h3>Contrôle de santé <small>exécuté chaque nuit par le cron ; e-mail aux administrateurs seulement en anomalie</small></h3>
+          {!dg ? <p className="muted">Réservé au DG.</p> : sante ? (
+            <>
+              <div className={sante.ok ? "ok" : "warn"}>{sante.ok ? "Aucune anomalie." : `${(sante.anomalies as string[]).length} anomalie(s)`}</div>
+              <ul style={{ paddingLeft: 18 }}>{((sante.anomalies as string[]) ?? []).map((a, i) => <li key={i}>{a}</li>)}</ul>
+              <dl className="dl mt"><dt>Extraction active</dt><dd>{formatDate(sante.extraction)}</dd><dt>Profils actifs</dt><dd>{sante.nb_profils_actifs}</dd></dl>
+            </>
+          ) : <p className="muted">Indisponible.</p>}
+          <div className="note">Planification : pont 07:00 (RPS-SERVER, horaire recommandé), recalcul + sauvegarde quotidienne + contrôle de santé 04:00 UTC, récapitulatif 17:00 UTC (Vercel Cron, et pg_cron si activé). Sauvegardes : instantané quotidien des tables d&apos;écriture (14 j) en base + <code>pg_dump</code> nocturne 90 j depuis RPS-SERVER (voir README).</div>
         </div>
       )}
 

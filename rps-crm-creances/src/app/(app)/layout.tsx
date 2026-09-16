@@ -3,6 +3,7 @@ import { exigerProfil, extractionActive, lireParametres } from "@/lib/session";
 import { LIBELLES_ROLE, formatDate, jours } from "@/lib/format";
 import { seDeconnecter } from "@/app/login/actions";
 import Link from "next/link";
+import { HorsLigne } from "@/components/HorsLigne";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const [{ profil }, extraction, parametres] = await Promise.all([exigerProfil(), extractionActive(), lireParametres()]);
@@ -16,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="sub">Facturation · Recouvrement · Créances — {parametres.societe.nom}</div>
         </div>
         <div className="sp" />
-        <span id="src">
+        <span id="src" className="opt">
           {extraction ? (
             <>Données du <b>{formatDate(extraction.date_extraction)}</b>{extraction.saisi_jusquau ? <> · saisi jusqu&apos;au <b>{formatDate(extraction.saisi_jusquau)}</b></> : null} · {extraction.source === "api" ? "API du pont" : "fichiers du pont"}</>
           ) : (
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <Nav />
       <main>
+        <HorsLigne renduLe={new Date().toLocaleString("fr-FR", { timeZone: parametres.exploitation.fuseau || "Africa/Niamey" })} />
         {perimee && extraction && (
           <div className="warn">⚠ Données du {formatDate(extraction.date_extraction)} ({age} jours) : l&apos;extraction du pont n&apos;a pas été reçue aujourd&apos;hui. Les chiffres affichés sont ceux de cette date, aucune estimation n&apos;est faite.</div>
         )}

@@ -49,8 +49,14 @@ export const LIBELLES_ROLE: Record<string, string> = {
   controle: "Contrôle de gestion",
 };
 export const LIBELLES_TYPE_ACTION: Record<string, string> = {
-  relance: "Relance", promesse: "Promesse de paiement", plan: "Plan de paiement", contentieux: "Contentieux", note: "Note", tache: "Tâche", appel: "Appel",
+  relance: "Relance", promesse: "Promesse de paiement", plan: "Plan de paiement", mise_en_demeure: "Mise en demeure", contentieux: "Contentieux", note: "Note", tache: "Tâche", appel: "Appel",
 };
+export const LIBELLES_STATUT_ACTION: Record<string, string> = { ouverte: "ouverte", fermee: "close" };
+export const LIBELLES_RESULTAT: Record<string, string> = { tenue: "tenue", non_tenue: "non tenue", annulee: "annulée" };
+export const LIBELLES_DOCUMENT: Record<string, string> = { situation_4_volets: "Situation officielle 4 volets", releve: "Relevé", relance: "Courrier de relance", mise_en_demeure: "Mise en demeure" };
+export const LIBELLES_LIEN: Record<string, string> = { multi_clients: "remise multi-clients", regle_via: "réglé via", regularise: "régularisation" };
+export const LIBELLES_STATUT_EXTRACTION: Record<string, string> = { active: "active", en_cours: "en cours", archivee: "archivée", abandonnee: "abandonnée" };
+export const LIBELLES_SOURCE: Record<string, string> = { api: "API du pont", fichiers: "fichiers du pont" };
 export const LIBELLES_CANAL: Record<string, string> = {
   whatsapp: "WhatsApp", sms: "SMS", email: "E-mail", telephone: "Téléphone", courrier: "Courrier", visite: "Visite",
 };
@@ -62,6 +68,7 @@ export const LIBELLES_STATUT: Record<string, { libelle: string; classe: string }
   "relancé": { libelle: "Relancé", classe: "bleu" },
   promesse: { libelle: "Promesse", classe: "or" },
   plan: { libelle: "Plan de paiement", classe: "or" },
+  "mise en demeure": { libelle: "Mise en demeure", classe: "rouge" },
   contentieux: { libelle: "Contentieux", classe: "rouge" },
   "en cours": { libelle: "En cours", classe: "gris" },
   "soldé": { libelle: "Soldé", classe: "vert" },

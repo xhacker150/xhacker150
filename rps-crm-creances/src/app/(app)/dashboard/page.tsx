@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { lire } from "@/lib/erreurs";
 import { fmtF, fmtM, formatDate, libelleMois } from "@/lib/format";
 import { BadgeStatut, Score } from "@/components/Badge";
 import { Messages } from "@/components/Messages";
@@ -13,22 +14,23 @@ interface Kpis {
   top_debiteurs: { compte: string; intitule: string; solde: number; jours: number | null; statut: string; typologie: string; score: number }[];
   promesses_semaine: { id: string; compte: string; intitule: string; montant: number; echeance: string; auteur: string }[];
   promesses_echues: { id: string; compte: string; intitule: string; montant: number; echeance: string; auteur: string }[];
-  prevision_30j: number; prevision_60j: number; taux_promesses_tenues: number | null; taches_du_jour: number; contentieux: number; limites_depassees: number;
+  prevision_30j: number; prevision_60j: number; taux_promesses_tenues: number | null; taches_du_jour: number; contentieux: number; limites_depassees: number; bv_bloques: number; total_top_10: number;
   courbe_12_mois: { mois: string; facture: number; encaisse: number }[];
 }
 interface Alertes {
   decrochages: { compte: string; intitule: string; solde: number; jours: number; seuil: number; typologie: string }[];
   promesses_echues: unknown[]; limites_depassees: { compte: string; intitule: string; solde: number; limite: number }[];
   comptes_muets: { compte: string; intitule: string; solde: number }[]; avances_qui_fondent: { compte: string; intitule: string; avance: number }[];
+  bv_bloques: { compte: string; intitule: string; solde: number; ratio: number; bons: number }[];
 }
 const TRANCHES: [string, string][] = [["0_30", "0-30 j"], ["31_60", "31-60 j"], ["61_90", "61-90 j"], ["plus_90", "+90 j"]];
 
 export default async function PageTableauDeBord({ searchParams }: { searchParams: Promise<{ erreur?: string; succes?: string }> }) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const [{ data: kpis }, { data: alertes }] = await Promise.all([supabase.rpc("tableau_de_bord"), supabase.rpc("alertes_du_jour")]);
-  const k = (kpis ?? { sans_donnees: true }) as Kpis;
-  const al = (alertes ?? {}) as Alertes;
+  const [kpisBrut, alertesBrut] = await Promise.all([supabase.rpc("tableau_de_bord"), supabase.rpc("alertes_du_jour")]);
+  const k = (lire(kpisBrut, "tableau de bord") ?? { sans_donnees: true }) as Kpis;   // une panne lève : jamais un écran vide rassurant
+  const al = (lire(alertesBrut, "alertes") ?? {}) as Alertes;
 
   if (k.sans_donnees) {
     return (
@@ -43,8 +45,10 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
     );
   }
   const total = Math.max(1, Number(k.creances_totales));
-  const maxCourbe = Math.max(1, ...k.courbe_12_mois.flatMap((m) => [Number(m.facture), Number(m.encaisse)]));
-  const maxTop = Math.max(1, ...k.top_debiteurs.map((d) => Number(d.solde)));
+  const courbe = k.courbe_12_mois ?? [];
+  const top = k.top_debiteurs ?? [];
+  const maxCourbe = Math.max(1, ...courbe.flatMap((m) => [Number(m.facture), Number(m.encaisse)]));
+  const maxTop = Math.max(1, ...top.map((d) => Number(d.solde)));
 
   return (
     <>
@@ -56,23 +60,26 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
         <Link href="/facturation" className="tuile b"><div className="l">Facturé {libelleMois(k.mois)}</div><div className="v">{fmtF(k.facture_mois)}</div><div className="d">saisi jusqu&apos;au {formatDate(k.saisi_jusquau)} — mois non clos</div></Link>
         <Link href="/facturation" className="tuile v2"><div className="l">Encaissé {libelleMois(k.mois)}</div><div className="v">{fmtF(k.encaisse_mois)}</div><div className="d">{libelleMois(k.mois_clos)} : {fmtM(k.encaisse_mois_clos)} / {fmtM(k.facture_mois_clos)} facturés</div></Link>
         <Link href="/clients?statut=créditeur" className="tuile v2"><div className="l">Avances clients</div><div className="v">{fmtF(k.avances)}</div><div className="d">clients créditeurs : relance interdite</div></Link>
-        <div className="tuile o"><div className="l">DSO</div><div className="v">{k.dso_jours ?? "—"} j</div><div className="d">encours / facturé 12 derniers mois clos × 365</div></div>
-        <Link href="/clients?tri=jours" className="tuile r"><div className="l">Créances &gt; 90 j</div><div className="v">{k.part_creances_90j} %</div><div className="d">{fmtF(k.creances_90j)} — cible &lt; 5 %</div></Link>
+        <Link href="/facturation" className="tuile o"><div className="l">DSO</div><div className="v">{k.dso_jours ?? "—"} j</div><div className="d">encours / facturé 12 derniers mois clos × 365</div></Link>
+        <Link href="/clients?jours_min=90&tri=jours" className="tuile r"><div className="l">Créances &gt; 90 j</div><div className="v">{k.part_creances_90j} %</div><div className="d">{fmtF(k.creances_90j)} — cible &lt; 5 %</div></Link>
         <Link href="/recouvrement?vue=promesses" className="tuile o"><div className="l">Prévision d&apos;encaissement</div><div className="v">{fmtM(k.prevision_30j)}</div><div className="d">à 30 j · {fmtM(k.prevision_60j)} à 60 j · promesses tenues : {k.taux_promesses_tenues ?? "—"} %</div></Link>
       </div>
 
-      {(al.decrochages?.length > 0 || k.promesses_echues.length > 0 || al.limites_depassees?.length > 0) && (
+      {((al.decrochages?.length ?? 0) > 0 || (k.promesses_echues?.length ?? 0) > 0 || (al.limites_depassees?.length ?? 0) > 0 || (al.bv_bloques?.length ?? 0) > 0 || (al.comptes_muets?.length ?? 0) > 0) && (
         <div className="card" style={{ borderLeft: "4px solid var(--rouge)" }}>
           <h3>Alertes du matin</h3>
           <ul style={{ paddingLeft: 18, fontSize: 12.5 }}>
             {al.decrochages?.slice(0, 6).map((d) => (
               <li key={d.compte}><Link href={`/clients/${d.compte}`}><b>{d.intitule}</b></Link> a décroché : {d.jours} j sans règlement (sa cadence : alerte à {d.seuil} j) — solde {fmtF(d.solde)} · {d.typologie}</li>
             ))}
-            {k.promesses_echues.map((p) => (
+            {(k.promesses_echues ?? []).map((p) => (
               <li key={p.id}><Link href={`/clients/${p.compte}`}><b>{p.intitule}</b></Link> : promesse de {fmtF(p.montant)} échue le {formatDate(p.echeance)} non tenue ({p.auteur})</li>
             ))}
             {al.limites_depassees?.map((l) => (
               <li key={l.compte}><Link href={`/clients/${l.compte}`}><b>{l.intitule}</b></Link> dépasse sa limite de crédit : {fmtF(l.solde)} pour {fmtF(l.limite)} — décision DG requise</li>
+            ))}
+            {al.bv_bloques?.map((b) => (
+              <li key={b.compte}><Link href={`/clients/${b.compte}`}><b>{b.intitule}</b></Link> (BV) : bons servis {fmtF(b.bons)} pour un ratio bons/réglés de {b.ratio} — pas de nouveau lot sans règlement</li>
             ))}
             {al.comptes_muets?.map((c) => (
               <li key={c.compte}><Link href={`/clients/${c.compte}`}><b>{c.intitule}</b></Link> : compte muet (aucun règlement), {fmtF(c.solde)} dus — pré-contentieux</li>
@@ -86,9 +93,9 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
 
       <div className="grid2">
         <div className="card">
-          <h3>Top débiteurs <small><Link href="/clients">tous les clients →</Link></small></h3>
+          <h3>Top 10 débiteurs <small>Σ {fmtF(k.total_top_10)} · <Link href="/clients">tous les clients →</Link></small></h3>
           <div className="stat-liste">
-            {k.top_debiteurs.map((d) => (
+            {top.map((d) => (
               <Link href={`/clients/${d.compte}`} key={d.compte} className="stat-ligne" style={{ color: "inherit" }}>
                 <span className="n">{d.intitule}</span>
                 <span className="b"><span className="bar r"><i style={{ width: `${Math.round((100 * Number(d.solde)) / maxTop)}%` }} /></span></span>
@@ -123,7 +130,7 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
       <div className="grid2">
         <div className="card">
           <h3>Facturé vs encaissé — 12 mois</h3>
-          {k.courbe_12_mois.map((m) => (
+          {courbe.map((m) => (
             <div key={m.mois} style={{ marginBottom: 6 }}>
               <div className="stat-ligne"><span className="n" style={{ width: 70 }}>{libelleMois(m.mois)}</span><span className="b"><span className="bar"><i style={{ width: `${Math.round((100 * Number(m.facture)) / maxCourbe)}%` }} /></span></span><span className="m sc muted">{fmtM(m.facture)}</span></div>
               <div className="stat-ligne"><span className="n" style={{ width: 70 }} /><span className="b"><span className="bar v"><i style={{ width: `${Math.round((100 * Number(m.encaisse)) / maxCourbe)}%` }} /></span></span><span className="m sc">{fmtM(m.encaisse)}</span></div>
@@ -136,8 +143,8 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
           <div className="tbl"><table>
             <thead><tr><th>Échéance</th><th>Client</th><th className="num">Montant</th><th>Par</th></tr></thead>
             <tbody>
-              {k.promesses_semaine.length === 0 && <tr><td colSpan={4} className="muted">Aucune promesse à échéance dans les 7 jours.</td></tr>}
-              {k.promesses_semaine.map((p) => (
+              {(k.promesses_semaine ?? []).length === 0 && <tr><td colSpan={4} className="muted">Aucune promesse à échéance dans les 7 jours.</td></tr>}
+              {(k.promesses_semaine ?? []).map((p) => (
                 <tr key={p.id}><td>{formatDate(p.echeance)}</td><td><Link href={`/clients/${p.compte}`}>{p.intitule}</Link></td><td className="num">{fmtF(p.montant)}</td><td>{p.auteur}</td></tr>
               ))}
             </tbody>
@@ -146,6 +153,7 @@ export default async function PageTableauDeBord({ searchParams }: { searchParams
             <Link href="/recouvrement?vue=taches" className="tuile"><div className="l">Tâches du jour</div><div className="v">{k.taches_du_jour}</div></Link>
             <Link href="/recouvrement" className="tuile r"><div className="l">Contentieux</div><div className="v">{k.contentieux}</div></Link>
             <Link href="/clients?limite=1" className="tuile o"><div className="l">Limites dépassées</div><div className="v">{k.limites_depassees}</div></Link>
+            <Link href="/clients?bv=1" className="tuile r"><div className="l">BV bloqués</div><div className="v">{k.bv_bloques ?? 0}</div></Link>
           </div>
         </div>
       </div>

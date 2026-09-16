@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { tout } from "@/lib/supabase/pagine";
 import { exigerProfil, extractionActive, peutRecouvrer, lireParametres } from "@/lib/session";
 import { fmt, fmtF, formatDate, jours, aujourdhui, LIBELLES_TYPE_ACTION, LIBELLES_CANAL } from "@/lib/format";
 import { Badge, Score } from "@/components/Badge";
@@ -11,7 +12,9 @@ type SP = { vue?: string; succes?: string; erreur?: string; interlocuteur?: stri
 const COLONNES: { cle: string; titre: string; classe: string; statuts: string[] }[] = [
   { cle: "a_relancer", titre: "À relancer", classe: "rouge", statuts: ["à relancer"] },
   { cle: "relance", titre: "Relancé", classe: "", statuts: ["relancé"] },
-  { cle: "promesse", titre: "Promesse / plan de paiement", classe: "or", statuts: ["promesse", "plan"] },
+  { cle: "promesse", titre: "Promesse de paiement", classe: "or", statuts: ["promesse"] },
+  { cle: "plan", titre: "Plan de paiement", classe: "or", statuts: ["plan"] },
+  { cle: "med", titre: "Mise en demeure (pré-contentieux)", classe: "rouge", statuts: ["mise en demeure"] },
   { cle: "contentieux", titre: "Contentieux", classe: "rouge", statuts: ["contentieux"] },
 ];
 
@@ -21,19 +24,22 @@ export default async function PageRecouvrement({ searchParams }: { searchParams:
   const supabase = await createClient();
   const [{ profil }, extraction, parametres] = await Promise.all([exigerProfil(), extractionActive(), lireParametres()]);
   const droit = peutRecouvrer(profil.role);
-  let req = supabase.from("vue_clients").select("*").in("statut", ["à relancer", "relancé", "promesse", "plan", "contentieux"]).order("solde", { ascending: false });
+  let req = supabase.from("vue_clients").select("*").in("statut", ["à relancer", "relancé", "promesse", "plan", "mise en demeure", "contentieux"]).order("solde", { ascending: false });
   if (sp.interlocuteur) req = req.eq("interlocuteur_id", sp.interlocuteur);
   if (sp.typologie) req = req.eq("typologie", sp.typologie);
-  const [{ data: clients }, { data: ouvertes }, { data: agents }] = await Promise.all([
-    req,
-    supabase.from("actions").select("*").eq("statut", "ouverte").order("echeance", { ascending: true, nullsFirst: false }),
-    supabase.from("profils").select("id, nom").eq("actif", true).order("nom"),
+  const stagnation = parametres.seuils.stagnation_jours ?? 14;
+  const depuis = new Date(Date.now() - 30 * 86400000).toISOString();
+  const [liste, actions, agents, soldes] = await Promise.all([
+    tout<VueClient>(req),
+    tout<Action>(supabase.from("actions").select("*").eq("statut", "ouverte").order("echeance", { ascending: true, nullsFirst: false })),
+    supabase.from("profils").select("id, nom").eq("actif", true).order("nom").then((r) => r.data ?? []),
+    tout<Action>(supabase.from("actions").select("*").eq("statut", "fermee").gte("ferme_le", depuis).in("type", ["relance", "promesse", "plan", "contentieux", "mise_en_demeure"]).not("reglee_par_piece", "is", null).order("ferme_le", { ascending: false })),
   ]);
-  const liste = (clients ?? []) as VueClient[];
-  const actions = (ouvertes ?? []) as Action[];
+  const { data: nomsSoldes } = soldes.length ? await supabase.from("clients_calc").select("compte, intitule, solde").in("compte", [...new Set(soldes.map((a) => a.compte))]) : { data: [] };
+  const nomSolde = new Map((nomsSoldes ?? []).map((c) => [c.compte, c]));
   const parCompte = new Map<string, Action[]>();
   for (const a of actions) parCompte.set(a.compte, [...(parCompte.get(a.compte) ?? []), a]);
-  const nomClient = new Map(liste.map((c) => [c.compte, c.intitule]));
+  const nomClient = new Map([...liste.map((c) => [c.compte, c.intitule] as [string, string]), ...(nomsSoldes ?? []).map((c) => [c.compte, c.intitule] as [string, string])]);
   const today = aujourdhui();
 
   const promesses = actions.filter((a) => a.type === "promesse" || a.type === "plan").sort((a, b) => (a.echeance ?? "9") < (b.echeance ?? "9") ? -1 : 1);
@@ -42,6 +48,7 @@ export default async function PageRecouvrement({ searchParams }: { searchParams:
   return (
     <>
       <h1 className="pg">Recouvrement — {vue === "pipeline" ? "pipeline" : vue === "promesses" ? "promesses et plans" : "tâches"} <span className="muted">données du {formatDate(extraction?.date_extraction)}</span></h1>
+      <div className="onglets-colonnes noprint">{COLONNES.map((col) => <a key={col.cle} href={`#col-${col.cle}`}>{col.titre.split(" (")[0]}</a>)}<a href="#col-soldes">Soldé</a></div>
       <Messages succes={sp.succes} erreur={sp.erreur} />
       <div className="frm" style={{ marginBottom: 12 }}>
         <nav className="onglets" style={{ position: "static", flex: 1, borderRadius: 8 }}>
@@ -62,19 +69,19 @@ export default async function PageRecouvrement({ searchParams }: { searchParams:
             {COLONNES.map((col) => {
               const arr = liste.filter((c) => col.statuts.includes(c.statut));
               return (
-                <div className="kcol" key={col.cle}>
+                <div className="kcol" key={col.cle} id={`col-${col.cle}`}>
                   <h4><span>{col.titre} ({arr.length})</span><span>{fmt(arr.reduce((s, c) => s + Number(c.solde), 0))} F</span></h4>
                   {arr.length === 0 && <div className="muted">Rien ici.</div>}
                   {arr.slice(0, 40).map((c) => {
-                    const a = (parCompte.get(c.compte) ?? []).find((x) => ["relance", "promesse", "plan", "contentieux"].includes(x.type));
-                    const stagne = a ? (jours(a.date_action) ?? 0) > 14 : (c.jours_sans_reglement ?? 0) > 2 * c.seuil_alerte_jours;
+                    const a = (parCompte.get(c.compte) ?? []).find((x) => (col.cle === "contentieux" ? x.type === "contentieux" : col.cle === "med" ? x.type === "mise_en_demeure" : ["relance", "promesse", "plan"].includes(x.type)));
+                    const stagne = a ? (jours(a.date_action) ?? 0) > stagnation : (c.jours_sans_reglement ?? 0) > 2 * c.seuil_alerte_jours;
                     return (
                       <div key={c.compte} className={`kcard ${col.classe} ${stagne ? "pourri" : ""}`} title={stagne ? "Cette carte stagne" : ""}>
                         <b><Link href={`/clients/${c.compte}`}>{c.intitule}</Link> <Score score={c.score} /></b>
                         <span className="m">{fmtF(c.solde)}</span> <span className="muted">dernier règl. {formatDate(c.dernier_reglement, true)} ({c.jours_sans_reglement === null ? "jamais" : `${c.jours_sans_reglement} j`}) · alerte à {c.seuil_alerte_jours} j</span>
                         <div className="muted">{c.typologie}{c.niveau_suggere ? ` · niveau suggéré N${c.niveau_suggere}` : ""}{c.interlocuteur ? ` · ${c.interlocuteur}` : ""}</div>
                         {a?.note && <div className="muted">« {a.note.slice(0, 70)} » — {a.auteur}, {formatDate(a.date_action, true)}</div>}
-                        {a?.type === "promesse" && a.echeance && <div style={{ color: a.echeance < today ? "var(--rouge)" : "var(--or)", fontWeight: "bold", fontSize: 11 }}>{a.echeance < today ? "⚠ promesse échue le" : "promesse de"} {fmtF(a.montant)} {a.echeance < today ? "" : "le"} {formatDate(a.echeance, true)}</div>}
+                        {(a?.type === "promesse" || a?.type === "plan") && a.echeance && <div style={{ color: a.echeance < today ? "var(--rouge)" : "var(--or)", fontWeight: "bold", fontSize: 11 }}>{a.echeance < today ? "⚠ échéance dépassée le" : `${a.type === "plan" ? "prochaine échéance" : "promesse de"}`} {a.type === "promesse" ? fmtF(a.montant) : ""} {a.echeance < today ? "" : "le"} {formatDate(a.echeance, true)}{a.resultat === "non_tenue" ? " — non tenue" : ""}</div>}
                         {stagne && <div style={{ color: "var(--rouge)", fontSize: 11 }}>⏳ stagne depuis {a ? jours(a.date_action) : c.jours_sans_reglement} j</div>}
                         {droit && (
                           <div className="a">
@@ -97,12 +104,19 @@ export default async function PageRecouvrement({ searchParams }: { searchParams:
                                 </form>
                               </details>
                             )}
-                            {col.cle !== "contentieux" && profil.role === "dg" && (
+                            {col.cle !== "contentieux" && col.cle !== "med" && profil.role === "dg" && !c.mise_en_demeure && (
+                              <form action={creerAction.bind(null, c.compte)}>
+                                <input type="hidden" name="type" value="mise_en_demeure" /><input type="hidden" name="niveau" value="4" /><input type="hidden" name="retour" value="recouvrement" /><input type="hidden" name="note" value="Mise en demeure décidée par le DG (pré-contentieux)" />
+                                <button className="btn sm" type="submit">📜 Mise en demeure</button>
+                              </form>
+                            )}
+                            {col.cle !== "contentieux" && profil.role === "dg" && c.mise_en_demeure && (
                               <form action={creerAction.bind(null, c.compte)}>
                                 <input type="hidden" name="type" value="contentieux" /><input type="hidden" name="niveau" value="4" /><input type="hidden" name="retour" value="recouvrement" /><input type="hidden" name="note" value="Passage en contentieux décidé par le DG" />
                                 <button className="btn sm" type="submit">⚖ Contentieux</button>
                               </form>
                             )}
+                            {col.cle === "med" && <Link className="btn sm" href={`/clients/${c.compte}?onglet=messages&modele=mise_en_demeure`}>📄 Courrier MED</Link>}
                             {a && (
                               <form action={fermerAction.bind(null, c.compte, a.id)}>
                                 <input type="hidden" name="retour" value="recouvrement" />
@@ -118,8 +132,19 @@ export default async function PageRecouvrement({ searchParams }: { searchParams:
                 </div>
               );
             })}
+            <div className="kcol" id="col-soldes">
+              <h4><span>Soldé / réglé (30 j)</span><span>{soldes.length}</span></h4>
+              {soldes.length === 0 && <div className="muted">Rien ici.</div>}
+              {soldes.slice(0, 40).map((a) => (
+                <div key={a.id} className="kcard" style={{ borderLeftColor: "var(--vert)" }}>
+                  <b><Link href={`/clients/${a.compte}`}>{nomSolde.get(a.compte)?.intitule ?? a.compte}</Link></b>
+                  <span className="muted">{LIBELLES_TYPE_ACTION[a.type]} close le {formatDate(a.ferme_le, true)} — {a.ferme_motif}{a.reglee_par_piece ? ` (pièce ${a.reglee_par_piece})` : ""}</span>
+                  <div className="muted">solde actuel {fmtF(nomSolde.get(a.compte)?.solde ?? 0)}</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="note">Entrée automatique dans « À relancer » : solde &gt; {fmt(parametres.seuils.solde_min_relance)} F et pas de règlement depuis plus de 1,5 × la cadence du client (bornée {parametres.seuils.cadence_min_jours}-{parametres.seuils.cadence_max_jours} j ; filet générique {parametres.seuils.jours_generique} j). Une carte sort d&apos;elle-même dès qu&apos;un règlement couvrant arrive dans l&apos;extraction Sage. Une carte qui stagne plus de 14 jours rosit. Séquence : N1 relevé préventif · N2 amiable · N3 ferme (&gt; {parametres.seuils.n3_jours} j, copie DG) · N4 mise en demeure (&gt; {parametres.seuils.n4_jours} j ou 2 promesses non tenues, décision DG).</div>
+          <div className="note">Entrée automatique dans « À relancer » : solde &gt; {fmt(parametres.seuils.solde_min_relance)} F et pas de règlement depuis plus de 1,5 × la cadence du client (bornée {parametres.seuils.cadence_min_jours}-{parametres.seuils.cadence_max_jours} j ; filet générique {parametres.seuils.jours_generique} j). Une carte sort d&apos;elle-même dès qu&apos;un règlement couvrant arrive dans l&apos;extraction Sage. Une carte qui stagne plus de {stagnation} jours rosit. Contentieux : mise en demeure (décision DG) obligatoire avant. Séquence : N1 relevé préventif · N2 amiable · N3 ferme (&gt; {parametres.seuils.n3_jours} j, copie DG) · N4 mise en demeure (&gt; {parametres.seuils.n4_jours} j ou 2 promesses non tenues, décision DG).</div>
         </>
       )}
 
