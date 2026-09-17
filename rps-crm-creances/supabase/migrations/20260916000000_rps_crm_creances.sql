@@ -373,7 +373,7 @@ REVOKE EXECUTE ON FUNCTION journaliser(VARCHAR, VARCHAR, JSONB) FROM PUBLIC, ano
 -- Aides de validation (chargement tolérant : une ligne invalide est rejetée, pas le lot)
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION vers_numeric(p TEXT) RETURNS NUMERIC LANGUAGE plpgsql IMMUTABLE AS $$
-DECLARE v TEXT := regexp_replace(COALESCE(p, ''), '[[:space:]  ]', '', 'g');
+DECLARE v TEXT := regexp_replace(COALESCE(p, ''), '[[:space:]\u00A0\u202F]', '', 'g');
 BEGIN
     IF v = '' THEN RETURN 0; END IF;
     IF v ~ ',' AND v ~ '\.' THEN

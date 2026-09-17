@@ -56,10 +56,13 @@ rps-crm-creances/
 ## Mise en service
 
 ### 1. Supabase (projet dédié)
+> **État au 17/09/2026** : projet « RPS CRM CREANCES » créé (eu-west-3, ref `fwyfgfhusnwztjwjnhyi`), les trois
+> migrations appliquées, pg_cron et bucket en place, chiffres prouvés au franc sur la base réelle puis jeu
+> synthétique purgé. Détail et reste à faire : `docs/MISE-EN-SERVICE.md`.
+
 1. Créer le projet « RPS CRM CREANCES » (eu-west-3) — nécessite une organisation Supabase sans facture impayée.
-2. **SQL Editor** : exécuter `supabase/migrations/20260916000000_rps_crm_creances.sql` puis
-   `supabase/migrations/20260917000000_bases_workflow.sql` (ou `supabase db push`). pg_cron et le bucket
-   `crm-documents` sont créés s'ils sont disponibles.
+2. **SQL Editor** : exécuter dans l'ordre les fichiers de `supabase/migrations/` (ou `supabase db push`). pg_cron
+   et le bucket `crm-documents` sont créés s'ils sont disponibles.
 3. **Authentication → Providers → Email** : activé, « Allow new users to sign up » **désactivé**, protection
    « mots de passe compromis » activée. **Authentication → Users** : créer le DG puis chaque personne avec son
    **e-mail réel** (invitation par lien, jamais de mot de passe en clair).

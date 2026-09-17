@@ -10,7 +10,7 @@ Version 1.0 — 17/09/2026. Revue conduite par une équipe de quatre agents (don
 | Sujet | Décision |
 | --- | --- |
 | Projet de référence pour les bases communes | « RPS WORKFLOW » (workflow v1) ; « WORKFLOW 2.0 » consulté en complément |
-| Hébergement de la base CRM | **Projet Supabase dédié** « RPS CRM CREANCES » (à créer dès régularisation des factures Supabase) ; référentiels répliqués, pas partagés |
+| Hébergement de la base CRM | **Projet Supabase dédié** « RPS CRM CREANCES » (créé le 17/09/2026, eu-west-3 — voir `MISE-EN-SERVICE.md`) ; référentiels répliqués, pas partagés |
 | Données réelles dans le dépôt | **Anonymisation** des copies (`docs/`, README, maquette) : témoins T1…T14 ; chiffres opposables §3.5 dans `recette/temoins.json` hors dépôt |
 
 Conséquence de l'hébergement dédié (avertissement) : tant qu'un fournisseur d'identité commun (CDC-04) n'est pas
