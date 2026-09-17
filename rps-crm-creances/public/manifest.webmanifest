@@ -1,0 +1,10 @@
+{
+  "name": "RPS CRM Créances",
+  "short_name": "CRM Créances",
+  "lang": "fr",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F4F6FA",
+  "theme_color": "#EA0000",
+  "icons": [{ "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

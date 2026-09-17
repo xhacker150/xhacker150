@@ -1,0 +1,66 @@
+name: Recette CRM Créances
+
+on:
+  push:
+    paths: ["rps-crm-creances/**", ".github/workflows/recette.yml"]
+  pull_request:
+    paths: ["rps-crm-creances/**"]
+
+defaults:
+  run:
+    working-directory: rps-crm-creances
+
+jobs:
+  unitaires:
+    name: Tests unitaires, types, compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: rps-crm-creances/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://exemple.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: cle-de-compilation
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install pytest
+      - run: python -m pytest pont/ -q
+
+  recette-sql:
+    name: Recette SQL (soldes au franc, règles métier, droits)
+    runs-on: ubuntu-latest
+    needs: unitaires
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: crm_user
+          POSTGRES_PASSWORD: crm_pass
+          POSTGRES_DB: crm_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U crm_user -d crm_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: crm_user
+      PGPASSWORD: crm_pass
+      PGDATABASE: crm_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Client psql
+        run: sudo apt-get update -q && sudo apt-get install -y -q postgresql-client
+      - name: Schéma (stub auth + migrations)
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/local-auth-stub.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+      - name: Jeu synthétique
+        run: python3 pont/donnees_synthetiques.py --sql /tmp/charge.sql --attendus
+      - name: Recette SQL
+        run: psql -v ON_ERROR_STOP=1 -v charge=/tmp/charge.sql -f supabase/tests/recette.sql
