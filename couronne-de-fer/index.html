@@ -1,0 +1,2082 @@
+<title>Couronne de Fer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+:root{
+  --oak:#221811; --oak-2:#2F2218; --oak-3:#46331F; --seam:#5C4428;
+  --parch:#EAD9B0; --parch-2:#DCC692; --parch-3:#C9AE72;
+  --ink:#2B1D10; --ink-2:#5E4A33;
+  --crimson:#9E2F24; --crimson-2:#C8493C;
+  --brass:#C99D48; --brass-2:#E6C27A;
+  --royal:#2F6DB5;
+  --food:#C0483A; --wood:#8A5A2E; --gold:#E2B33A; --stone:#A09D92;
+  --display:"IM Fell English SC", "Palatino Linotype", Palatino, Georgia, serif;
+  --body:"Alegreya Sans", "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--oak);color:var(--parch);font-family:var(--body);font-size:15px;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+button{font-family:inherit}
+#app{height:100%;display:flex;flex-direction:column;gap:8px;padding:8px 16px;box-sizing:border-box}
+
+/* ---------- top bar ---------- */
+#top{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;padding:6px 12px;background:linear-gradient(var(--oak-3),var(--oak-2));border:1px solid var(--seam);border-radius:3px;font-variant-numeric:tabular-nums}
+.brand{font-family:var(--display);font-size:20px;color:var(--brass-2);letter-spacing:.02em;margin-right:6px;white-space:nowrap}
+.res{display:flex;align-items:center;gap:6px;font-weight:700;font-size:16px;min-width:58px}
+.ic{display:inline-block;width:12px;height:12px;flex:none}
+.ic.food{background:var(--food);border-radius:50%;box-shadow:inset -2px -2px 0 rgba(0,0,0,.25)}
+.ic.wood{background:var(--wood);border-radius:2px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25)}
+.ic.gold{background:var(--gold);transform:rotate(45deg) scale(.85)}
+.ic.stone{background:var(--stone);border-radius:3px 6px 2px 5px}
+.ic.pop{background:var(--parch-2);border-radius:6px 6px 2px 2px}
+.age{font-family:var(--display);font-size:17px;color:var(--parch-2)}
+.clock{color:var(--parch-3);font-weight:500}
+.tools{margin-left:auto;display:flex;gap:6px}
+.tbtn{background:var(--oak);color:var(--parch);border:1px solid var(--seam);border-radius:3px;padding:4px 10px;font-size:14px;cursor:pointer;white-space:nowrap}
+.tbtn:hover{border-color:var(--brass)}
+.tbtn b{color:var(--brass-2)}
+.tbtn.alert b{color:var(--crimson-2)}
+
+/* ---------- map view ---------- */
+#view{position:relative;flex:1;min-height:180px;border:1px solid var(--seam);border-radius:3px;overflow:hidden;background:#0d0a07}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:default}
+#msgs{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;width:min(92%,520px)}
+.msg{background:rgba(34,24,17,.88);border:1px solid var(--seam);color:var(--parch);padding:5px 12px;border-radius:3px;font-size:14px;text-align:center;animation:msgIn .25s ease-out}
+.msg.bad{border-color:var(--crimson);color:#F3C7B8}
+.msg.good{border-color:var(--brass);color:var(--brass-2)}
+@keyframes msgIn{from{transform:translateY(-6px);opacity:0}}
+#modehint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(34,24,17,.9);border:1px solid var(--brass);padding:5px 12px;border-radius:3px;font-size:14px;color:var(--brass-2);white-space:nowrap}
+
+/* ---------- bottom panel ---------- */
+#panel{display:grid;grid-template-columns:160px minmax(0,1fr) minmax(0,420px);grid-template-areas:"mini info cmds";gap:10px;height:176px;flex:none}
+#mini{grid-area:mini;width:160px;height:160px;align-self:center;border:2px solid var(--seam);border-radius:2px;background:#0d0a07;cursor:pointer;image-rendering:pixelated}
+#info,#cmds{touch-action:pan-y;background:var(--parch);color:var(--ink);border:1px solid var(--parch-3);border-radius:3px;padding:10px 12px;overflow:auto;box-shadow:inset 0 0 0 3px rgba(201,174,114,.35)}
+#info{grid-area:info}
+#cmds{grid-area:cmds;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;align-content:start}
+.i-name{font-family:var(--display);font-size:20px;line-height:1.1;margin:0;text-wrap:balance}
+.i-sub{color:var(--ink-2);font-size:13px;margin:2px 0 6px}
+.i-row{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;font-variant-numeric:tabular-nums}
+.i-row span b{font-weight:700}
+.hp{height:7px;background:#b9a57a;border-radius:1px;margin:4px 0 6px;max-width:260px;overflow:hidden}
+.hp i{display:block;height:100%;background:#4E8A3A}
+.hp.low i{background:var(--crimson)}
+.queue{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.q{position:relative;font-size:12px;padding:3px 7px;border:1px solid var(--parch-3);background:var(--parch-2);border-radius:2px;cursor:pointer;overflow:hidden}
+.q:hover{border-color:var(--crimson)}
+.q .bar{position:absolute;left:0;bottom:0;height:3px;background:var(--crimson)}
+.group{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;padding:3px 8px;background:var(--parch-2);border:1px solid var(--parch-3);border-radius:2px}
+.chip b{font-variant-numeric:tabular-nums}
+.hint{font-size:14px;color:var(--ink-2);line-height:1.45;max-width:60ch}
+.hint kbd{font-family:var(--body);font-size:12px;background:var(--parch-2);border:1px solid var(--parch-3);border-radius:2px;padding:0 4px;color:var(--ink)}
+.cmd{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:5px 7px 5px;min-height:46px;background:linear-gradient(#F3E6C4,#E0CA96);color:var(--ink);border:1px solid #9C7C47;border-radius:3px;cursor:pointer;font-size:13px;line-height:1.15}
+.cmd:hover{border-color:var(--crimson);background:linear-gradient(#F8EDD2,#E7D3A3)}
+.cmd:active{transform:translateY(1px)}
+.cmd .nm{font-weight:700;padding-right:14px}
+.cmd .k{position:absolute;top:3px;right:5px;font-size:11px;color:var(--ink-2);font-weight:800}
+.cmd .cost{display:flex;flex-wrap:wrap;gap:0 6px;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.cmd .cost .c{display:inline-flex;align-items:center;gap:3px}
+.cmd .cost .ic{width:8px;height:8px}
+.cmd.short .cost{color:var(--crimson)}
+.cmd.locked{opacity:.5;cursor:not-allowed}
+.cmd.locked .cost{color:var(--ink-2)}
+.cmd .lock{font-size:11px;color:var(--ink-2)}
+button:focus-visible,.cmd:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+
+/* ---------- overlay ---------- */
+#overlay{touch-action:pan-y;position:fixed;inset:0;display:grid;place-items:center;background:rgba(18,12,8,.62);padding:16px;overflow:auto;z-index:5}
+.card{background:var(--parch);color:var(--ink);max-width:640px;width:100%;border:1px solid var(--parch-3);border-radius:3px;padding:26px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.5),inset 0 0 0 5px rgba(201,174,114,.45);box-sizing:border-box}
+.card h1{font-family:var(--display);font-weight:400;font-size:clamp(34px,7vw,52px);line-height:1;margin:0;color:var(--crimson);text-wrap:balance}
+.card .lede{font-size:17px;line-height:1.45;margin:10px 0 18px;max-width:58ch;color:var(--ink)}
+.card h2{font-family:var(--display);font-weight:400;font-size:18px;margin:0 0 8px;color:var(--ink)}
+.diff{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.diff label{flex:1;min-width:120px;cursor:pointer}
+.diff input{position:absolute;opacity:0}
+.diff span{display:block;padding:8px 10px;border:1px solid var(--parch-3);border-radius:3px;background:var(--parch-2)}
+.diff span b{display:block;font-size:15px}
+.diff span small{font-size:12.5px;color:var(--ink-2)}
+.diff input:checked+span{border-color:var(--crimson);background:#F4E7C6;box-shadow:inset 0 0 0 1px var(--crimson)}
+.diff input:focus-visible+span{outline:2px solid var(--brass)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;margin:0 0 20px;line-height:1.35}
+.keys dt{font-weight:700;white-space:nowrap}
+.keys dd{margin:0;color:var(--ink-2)}
+.go{background:var(--crimson);color:#FBEBD8;border:1px solid #6E1E16;border-radius:3px;padding:11px 22px;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:.02em}
+.go:hover{background:#B23A2E}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:16px 0 20px}
+.stat{border-top:1px solid var(--parch-3);padding-top:6px}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--ink-2)}
+
+@media (max-width:760px){
+  #app{gap:6px;padding:6px 16px}
+  .brand{display:none}
+  #top{gap:4px 12px;padding:5px 8px}
+  .res{font-size:14px;min-width:0}
+  .tools{margin-left:0}
+  #panel{grid-template-columns:110px minmax(0,1fr);grid-template-areas:"mini info" "cmds cmds";height:auto;max-height:46vh}
+  #mini{width:110px;height:110px}
+  #info{max-height:120px}
+  #cmds{max-height:124px;grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}
+  .keys{grid-template-columns:1fr}
+  .keys dd{margin-bottom:4px}
+}
+@media (prefers-reduced-motion:reduce){.msg{animation:none}}
+</style>
+
+<div id="app">
+  <header id="top">
+    <div class="brand">Couronne de Fer</div>
+    <div class="res" title="Nourriture"><i class="ic food"></i><span id="r-food">0</span></div>
+    <div class="res" title="Bois"><i class="ic wood"></i><span id="r-wood">0</span></div>
+    <div class="res" title="Or"><i class="ic gold"></i><span id="r-gold">0</span></div>
+    <div class="res" title="Pierre"><i class="ic stone"></i><span id="r-stone">0</span></div>
+    <div class="res" title="Population / capacité des maisons"><i class="ic pop"></i><span id="r-pop">0/0</span></div>
+    <div class="age" id="age">Âge sombre</div>
+    <div class="clock" id="clock">00:00</div>
+    <div class="tools">
+      <button class="tbtn" id="b-idle" title="Sélectionner un villageois inactif (touche .)">Inactifs <b id="n-idle">0</b></button>
+      <button class="tbtn" id="b-army" title="Sélectionner toute l'armée">Armée</button>
+      <button class="tbtn" id="b-pause" title="Pause (touche P)">Pause</button>
+    </div>
+  </header>
+
+  <main id="view">
+    <canvas id="game"></canvas>
+    <div id="msgs"></div>
+    <div id="modehint" hidden></div>
+  </main>
+
+  <footer id="panel">
+    <canvas id="mini" width="160" height="160"></canvas>
+    <section id="info"></section>
+    <section id="cmds"></section>
+  </footer>
+
+  <div id="overlay">
+    <div class="card" id="card-start">
+      <h1>Couronne de Fer</h1>
+      <p class="lede">Deux royaumes, une seule vallée. Récoltez nourriture, bois, or et pierre, bâtissez votre ville, franchissez les âges et levez une armée pour raser l'Hôtel de ville adverse.</p>
+      <h2>Difficulté</h2>
+      <div class="diff" role="radiogroup" aria-label="Difficulté">
+        <label><input type="radio" name="diff" id="d-easy" value="easy"><span><b>Écuyer</b><small>Première attaque vers 10 min</small></span></label>
+        <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span><b>Chevalier</b><small>Première attaque vers 7 min</small></span></label>
+        <label><input type="radio" name="diff" id="d-hard" value="hard"><span><b>Seigneur de guerre</b><small>IA avantagée, attaque vers 5 min</small></span></label>
+      </div>
+      <h2>Commandes</h2>
+      <dl class="keys">
+        <dt>Clic gauche / glisser</dt><dd>Sélectionner une unité ou encadrer un groupe</dd>
+        <dt>Clic droit</dt><dd>Déplacer, récolter, construire, attaquer, point de ralliement</dd>
+        <dt>Flèches, molette, clic milieu</dt><dd>Déplacer la caméra et zoomer ; la mini-carte fonctionne aussi</dd>
+        <dt>Tactile</dt><dd>Glisser pour la caméra, toucher pour sélectionner puis toucher la cible pour l'ordre</dd>
+        <dt>H · . · Ctrl+1–9 · P</dt><dd>Hôtel de ville, villageois inactif, groupes, pause</dd>
+      </dl>
+      <button class="go" id="b-start">Commencer la partie</button>
+    </div>
+    <div class="card" id="card-end" hidden>
+      <h1 id="end-title">Victoire</h1>
+      <p class="lede" id="end-text"></p>
+      <div class="stats" id="end-stats"></div>
+      <button class="go" id="b-again">Nouvelle partie</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   Constantes & définitions
+   ===================================================================== */
+const T = 32, MW = 80, MH = 80, WW = MW * T, WH = MH * T, N = MW * MH;
+const RES_KEYS = ['food', 'wood', 'gold', 'stone'];
+const RES_NAME = { food: 'nourriture', wood: 'bois', gold: 'or', stone: 'pierre' };
+const RES_COL = { food: '#C0483A', wood: '#8A5A2E', gold: '#E2B33A', stone: '#A09D92' };
+const OWN = ['#2F6DB5', '#B8322A'];
+const OWN_DARK = ['#1B3F6B', '#6E1C17'];
+const CARRY = 10;
+
+const AGES = [null,
+  { name: 'Âge sombre' },
+  { name: 'Âge féodal', cost: { food: 500 }, time: 40 },
+  { name: 'Âge des châteaux', cost: { food: 800, gold: 200 }, time: 60 },
+];
+
+const RES_DEF = {
+  tree:  { name: 'Arbre', rtype: 'wood', amt: 100, size: 1, rate: .72 },
+  berry: { name: 'Buisson de baies', rtype: 'food', amt: 150, size: 1, rate: .8 },
+  gold:  { name: "Mine d'or", rtype: 'gold', amt: 800, size: 2, rate: .62 },
+  stone: { name: 'Carrière de pierre', rtype: 'stone', amt: 600, size: 2, rate: .58 },
+};
+const FARM_RATE = .6, FARM_FOOD = 300;
+
+const UNITS = {
+  villager: { name: 'Villageois', cls: 'vil', hp: 25, atk: 3, armor: 0, range: .6, rof: 1.5, speed: 52, sight: 5, r: 6, cost: { food: 50 }, time: 10, key: 'V',
+              desc: 'Récolte les ressources, construit et répare les bâtiments.' },
+  militia:  { name: 'Épéiste', cls: 'inf', hp: 55, atk: 7, armor: 1, range: .6, rof: 1.4, speed: 50, sight: 5, r: 7, cost: { food: 60, gold: 20 }, time: 12, key: 'E',
+              desc: "Fantassin solide et polyvalent." },
+  spear:    { name: 'Piquier', cls: 'inf', hp: 45, atk: 4, armor: 0, bonus: { cav: 14 }, range: .7, rof: 1.5, speed: 52, sight: 5, r: 7, cost: { food: 35, wood: 25 }, time: 10, age: 2, key: 'I',
+              desc: 'Bon marché. Très efficace contre la cavalerie.' },
+  archer:   { name: 'Archer', cls: 'arch', hp: 30, atk: 5, armor: 0, bonus: { inf: 2 }, range: 5, rof: 1.8, speed: 54, sight: 7, r: 6.5, proj: 'arrow', cost: { wood: 25, gold: 45 }, time: 14, age: 2, key: 'R',
+              desc: 'Tire à distance. Efficace contre l’infanterie, vulnérable à la cavalerie.' },
+  knight:   { name: 'Cavalier', cls: 'cav', hp: 110, atk: 9, armor: 2, bonus: { arch: 7, siege: 10 }, range: .6, rof: 1.6, speed: 84, sight: 6, r: 9, cost: { food: 70, gold: 75 }, time: 18, age: 2, key: 'C',
+              desc: 'Rapide et robuste. Écrase archers et engins de siège.' },
+  catapult: { name: 'Catapulte', cls: 'siege', hp: 70, atk: 16, armor: 1, bonus: { bld: 70 }, range: 7, rof: 4, speed: 30, sight: 8, r: 10, proj: 'rock', splash: 26, cost: { wood: 160, gold: 135 }, time: 25, age: 3, key: 'T',
+              desc: 'Projette des pierres qui dévastent bâtiments et groupes serrés.' },
+};
+
+const BLDS = {
+  tc:       { name: 'Hôtel de ville', size: 3, hp: 2400, armor: 3, cost: { wood: 275, stone: 100 }, time: 60, pop: 5, sight: 8, drop: ['food','wood','gold','stone'], trains: ['villager'], atk: 5, range: 6, rof: 2, noBuild: true,
+              desc: 'Cœur de la ville : forme les villageois, recherche les âges et reçoit toutes les ressources.' },
+  house:    { name: 'Maison', size: 2, hp: 600, armor: 1, cost: { wood: 30 }, time: 15, pop: 5, sight: 3, key: 'M', desc: '+5 population.' },
+  mill:     { name: 'Moulin', size: 2, hp: 600, armor: 1, cost: { wood: 100 }, time: 20, sight: 4, drop: ['food'], key: 'O', desc: 'Dépôt de nourriture. Nécessaire pour les fermes.' },
+  camp:     { name: 'Entrepôt', size: 2, hp: 600, armor: 1, cost: { wood: 100 }, time: 20, sight: 4, drop: ['wood','gold','stone'], key: 'E', desc: 'Dépôt de bois, d’or et de pierre. À placer près des ressources.' },
+  farm:     { name: 'Ferme', size: 2, hp: 300, armor: 0, cost: { wood: 60 }, time: 12, sight: 1, walk: true, req: 'mill', key: 'F', desc: 'Source de nourriture inépuisable ; se ressème automatiquement pour 60 bois.' },
+  barracks: { name: 'Caserne', size: 3, hp: 1200, armor: 2, cost: { wood: 150 }, time: 30, sight: 5, trains: ['militia','spear'], key: 'C', desc: 'Forme épéistes et piquiers.' },
+  range:    { name: 'Camp de tir', size: 3, hp: 1000, armor: 2, cost: { wood: 175 }, time: 30, sight: 5, trains: ['archer'], age: 2, req: 'barracks', key: 'R', desc: 'Forme les archers.' },
+  stable:   { name: 'Écurie', size: 3, hp: 1000, armor: 2, cost: { wood: 175 }, time: 30, sight: 5, trains: ['knight'], age: 2, req: 'barracks', key: 'U', desc: 'Forme les cavaliers.' },
+  tower:    { name: 'Tour de guet', size: 2, hp: 900, armor: 3, cost: { wood: 50, stone: 125 }, time: 35, sight: 9, atk: 7, range: 7, rof: 1.8, age: 2, key: 'T', desc: 'Défense : tire des flèches sur les ennemis proches.' },
+  workshop: { name: 'Atelier de siège', size: 3, hp: 1000, armor: 2, cost: { wood: 200, gold: 100 }, time: 40, sight: 5, trains: ['catapult'], age: 3, key: 'L', desc: 'Construit les catapultes.' },
+};
+const BUILD_LIST = ['house','mill','camp','farm','barracks','range','stable','tower','workshop'];
+
+const DIFF = {
+  easy:   { mult: .75, firstWave: 600, gap: 170, wave: 4, vBonus: -3, bonusRes: 0 },
+  normal: { mult: 1,   firstWave: 430, gap: 140, wave: 6, vBonus: 0,  bonusRes: 0 },
+  hard:   { mult: 1.35,firstWave: 320, gap: 110, wave: 8, vBonus: 4,  bonusRes: 200 },
+};
+const AI_MIX = [null,
+  { food: .55, wood: .42, gold: .03, stone: 0 },
+  { food: .42, wood: .35, gold: .18, stone: .05 },
+  { food: .40, wood: .27, gold: .28, stone: .05 },
+];
+
+/* =====================================================================
+   Utilitaires
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const inB = (x, y) => x >= 0 && y >= 0 && x < MW && y < MH;
+const tIdx = (px, py) => clamp(py / T | 0, 0, MH - 1) * MW + clamp(px / T | 0, 0, MW - 1);
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const canAfford = (P, c) => { for (const k in c) if (P.res[k] < c[k]) return false; return true; };
+const pay = (P, c) => { for (const k in c) P.res[k] -= c[k]; };
+const refund = (P, c) => { for (const k in c) P.res[k] += c[k]; };
+function missing(P, c) { const m = []; for (const k in c) if (P.res[k] < c[k]) m.push(`${Math.ceil(c[k] - P.res[k])} ${RES_NAME[k]}`); return m.join(', '); }
+const fmtTime = s => { s = Math.floor(s); return String(s / 60 | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+/* =====================================================================
+   État du jeu
+   ===================================================================== */
+let G = null, DT = 0;
+const cam = { x: 0, y: 0, z: 1 };
+
+function mkPlayer(bonus) {
+  return { res: { food: 200 + bonus, wood: 200 + bonus, gold: 100 + bonus, stone: 200 }, age: 1, pop: 0, popCap: 0, researching: false };
+}
+
+function newGame(diff, seed) {
+  const cfg = DIFF[diff];
+  G = {
+    t: 0, diff, running: false, paused: false, over: false,
+    ents: [], live: [], byId: new Map(), nextId: 1, proj: [], fx: [], pings: [],
+    players: [mkPlayer(0), mkPlayer(cfg.bonusRes)],
+    terrain: new Uint8Array(N), occ: new Int32Array(N), bgrid: new Int32Array(N),
+    vis: new Uint8Array(N), expl: new Uint8Array(N),
+    sel: [], groups: {}, visT: 0, endT: 1, alertT: 0, houseT: 0,
+    ai: { t: 3, nextWave: cfg.firstWave, waveSize: cfg.wave, rb: 0, warned: false },
+    stats: { trained: 0, killed: 0, lost: 0, gathered: 0 },
+    rand: mulberry(seed || (Math.random() * 1e9 | 0)),
+  };
+  genMap();
+  buildTerrainCanvas();
+  computeVis();
+  const tc = G.ents.find(e => e.kind === 'bld' && e.type === 'tc' && e.owner === 0);
+  cam.z = 1.2;
+  centerOn(tc.x, tc.y);
+  G.sel = [];
+  G.live = G.ents.filter(e => !e.dead && e.kind !== 'res');
+  panelSig = cmdSig = '';
+}
+
+/* =====================================================================
+   Entités
+   ===================================================================== */
+function addEnt(e) { e.id = G.nextId++; e.dead = false; G.ents.push(e); G.byId.set(e.id, e); return e; }
+function occupy(e, val) {
+  for (let y = e.ty; y < e.ty + e.size; y++) for (let x = e.tx; x < e.tx + e.size; x++) {
+    if (!inB(x, y)) continue;
+    const i = y * MW + x;
+    if (!e.walk) G.occ[i] = val;
+    G.bgrid[i] = val;
+  }
+}
+function freeArea(tx, ty, s) {
+  for (let y = ty; y < ty + s; y++) for (let x = tx; x < tx + s; x++) {
+    if (!inB(x, y)) return false;
+    const i = y * MW + x;
+    if (G.terrain[i] === 1 || G.bgrid[i]) return false;
+  }
+  return true;
+}
+function mkRes(sub, tx, ty) {
+  const d = RES_DEF[sub];
+  if (!freeArea(tx, ty, d.size)) return null;
+  const e = addEnt({ kind: 'res', sub, rtype: d.rtype, amount: d.amt, max: d.amt, tx, ty, size: d.size, x: (tx + d.size / 2) * T, y: (ty + d.size / 2) * T, owner: -1 });
+  occupy(e, e.id);
+  return e;
+}
+function mkUnit(type, owner, x, y) {
+  const d = UNITS[type];
+  return addEnt({ kind: 'unit', type, owner, x, y, r: d.r, hp: d.hp, maxHp: d.hp, order: null, path: null, pkey: '', rpT: 0, fails: 0,
+    atkCd: 0, scanT: Math.random() * .5, face: Math.PI / 2, carry: { type: null, amt: 0 }, gAcc: 0, working: false, stT: 0, lx: x, ly: y });
+}
+function placeBld(type, owner, tx, ty, built) {
+  const d = BLDS[type];
+  const b = addEnt({ kind: 'bld', type, owner, tx, ty, size: d.size, x: (tx + d.size / 2) * T, y: (ty + d.size / 2) * T,
+    hp: built ? d.hp : 1, maxHp: d.hp, built, prog: 0, queue: [], qT: 0, rally: null, atkCd: 0, walk: !!d.walk,
+    food: built && type === 'farm' ? FARM_FOOD : 0, seen: owner === 0, worker: 0 });
+  occupy(b, b.id);
+  if (!b.walk) evict(b);
+  return b;
+}
+function evict(b) {
+  for (const u of G.ents) {
+    if (u.kind !== 'unit' || u.dead) continue;
+    const tx = u.x / T | 0, ty = u.y / T | 0;
+    if (tx >= b.tx && tx < b.tx + b.size && ty >= b.ty && ty < b.ty + b.size) {
+      const w = nearestWalk(tx, ty);
+      if (w >= 0) { u.x = (w % MW + .5) * T; u.y = ((w / MW | 0) + .5) * T; u.path = null; }
+    }
+  }
+}
+function walk(i) { return G.terrain[i] !== 1 && G.occ[i] === 0; }
+function walkPx(x, y) { return x >= 0 && y >= 0 && x < WW && y < WH && walk(tIdx(x, y)); }
+function nearestWalk(tx, ty) {
+  for (let r = 0; r < 14; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = tx + dx, y = ty + dy;
+      if (inB(x, y) && walk(y * MW + x)) return y * MW + x;
+    }
+  }
+  return -1;
+}
+function edgeDistXY(px, py, e) {
+  if (e.kind === 'unit') return Math.max(0, Math.hypot(e.x - px, e.y - py) - e.r);
+  const x0 = e.tx * T, y0 = e.ty * T, x1 = x0 + e.size * T, y1 = y0 + e.size * T;
+  const dx = Math.max(x0 - px, 0, px - x1), dy = Math.max(y0 - py, 0, py - y1);
+  return Math.hypot(dx, dy);
+}
+const edgeDist = (u, e) => edgeDistXY(u.x, u.y, e);
+
+function kill(e, src) {
+  if (e.dead) return;
+  e.dead = true;
+  G.byId.delete(e.id);
+  if (e.kind !== 'unit') occupy(e, 0);
+  if (e.kind === 'unit') {
+    G.fx.push({ type: 'puff', x: e.x, y: e.y, t: 0, life: .6, c: OWN[e.owner] });
+    if (e.owner === 0) G.stats.lost++;
+    else if (src && src.owner === 0) G.stats.killed++;
+  } else if (e.kind === 'bld') {
+    G.fx.push({ type: 'rubble', x: e.tx * T, y: e.ty * T, s: e.size * T, t: 0, life: 20 });
+    if (e.owner === 0) msg(`${BLDS[e.type].name} détruit${e.type === 'house' || e.type === 'tower' || e.type === 'farm' ? 'e' : ''}.`, 'bad');
+    else if (src && src.owner === 0) G.stats.killed++;
+  }
+}
+
+/* =====================================================================
+   Génération de la carte
+   ===================================================================== */
+function genMap() {
+  const R = G.rand;
+  const bases = [[14, 65], [65, 14]];
+  const nearBase = (x, y, r) => bases.some(([bx, by]) => Math.hypot(x - bx, y - by) < r);
+
+  // Lacs
+  const lakes = [[40, 40, 5.5], [26 + R() * 6 | 0, 26 + R() * 6 | 0, 2.5 + R() * 1.5], [50 + R() * 6 | 0, 50 + R() * 6 | 0, 2.5 + R() * 1.5]];
+  for (const [lx, ly, lr] of lakes) {
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+      const d = Math.hypot(x - lx, (y - ly) * 1.15) + (R() - .5) * 1.4;
+      if (d < lr && !nearBase(x, y, 13)) G.terrain[y * MW + x] = 1;
+    }
+  }
+  // Forêt de bordure
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const e = Math.min(x, y, MW - 1 - x, MH - 1 - y);
+    if ((e === 0) || (e === 1 && R() < .85) || (e === 2 && R() < .45)) {
+      if (!nearBase(x, y, 10)) mkRes('tree', x, y);
+    }
+  }
+  // Bosquets
+  const clusters = [];
+  let tries = 0;
+  while (clusters.length < 18 && tries++ < 400) {
+    const cx = 5 + R() * (MW - 10) | 0, cy = 5 + R() * (MH - 10) | 0;
+    if (nearBase(cx, cy, 16)) continue;
+    // symétrie : on place aussi le bosquet miroir
+    clusters.push([cx, cy, 2 + R() * 3], [MW - 1 - cx, MH - 1 - cy, 2 + R() * 3]);
+  }
+  for (const [cx, cy, cr] of clusters) plantForest(cx, cy, cr);
+
+  for (let k = 0; k < 2; k++) {
+    const [px, py] = bases[k];
+    const sx = Math.sign(40 - px), sy = Math.sign(40 - py);
+    // bois proches
+    plantForest(px + 8 * sx, py - 7 * sy, 3.2);
+    plantForest(px - 8 * sx, py + 4 * sy, 2.6);
+    // baies
+    for (let i = 0; i < 6; i++) mkRes('berry', px + 5 * sx + (i % 3) * sx, py + (i / 3 | 0) * sy - (sy < 0 ? 1 : 0));
+    // or & pierre
+    mkRes('gold', px - 1, py + 6 * sy - (sy < 0 ? 1 : 0));
+    mkRes('stone', px - 7 * sx - (sx < 0 ? 1 : 0), py + 2 * sy);
+    mkRes('gold', px + 12 * sx - (sx < 0 ? 1 : 0), py + 11 * sy - (sy < 0 ? 1 : 0));
+    // Hôtel de ville et villageois
+    const tc = placeBld('tc', k, px - 1, py - 1, true);
+    for (let i = 0; i < 3; i++) mkUnit('villager', k, tc.x + (i - 1) * 22, tc.y + 3 * sy * T);
+    const scoutX = tc.x + 3 * sx * T, scoutY = tc.y;
+    mkUnit('militia', k, scoutX, scoutY);
+  }
+  // Ressources centrales (symétriques)
+  const mids = [['gold', 33, 52], ['stone', 30, 44], ['gold', 44, 30], ['berry', 22, 38]];
+  for (const [s, x, y] of mids) {
+    if (s === 'berry') { for (let i = 0; i < 4; i++) { mkRes(s, x + (i % 2), y + (i >> 1)); mkRes(s, MW - 2 - x + (i % 2), MH - 2 - y + (i >> 1)); } }
+    else { mkRes(s, x, y); mkRes(s, MW - 2 - x, MH - 2 - y); }
+  }
+  // Exploration initiale
+  for (const e of G.ents) if (e.owner === 0) reveal(e.x / T, e.y / T, 9, G.expl);
+
+  function plantForest(cx, cy, cr) {
+    for (let y = Math.floor(cy - cr - 1); y <= cy + cr + 1; y++) for (let x = Math.floor(cx - cr - 1); x <= cx + cr + 1; x++) {
+      if (!inB(x, y) || nearBase(x, y, 7.5)) continue;
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < cr - .3 || (d < cr + 1 && R() < .5)) mkRes('tree', x, y);
+    }
+  }
+}
+
+/* =====================================================================
+   Pathfinding A*
+   ===================================================================== */
+const gS = new Float32Array(N), came = new Int32Array(N), stamp = new Uint32Array(N), closed = new Uint32Array(N);
+const HCAP = 60000, HN = new Int32Array(HCAP), HF = new Float32Array(HCAP);
+let hl = 0, stampC = 0;
+function hpush(i, f) {
+  if (hl >= HCAP) return;
+  let k = hl++;
+  while (k > 0) { const p = (k - 1) >> 1; if (HF[p] <= f) break; HN[k] = HN[p]; HF[k] = HF[p]; k = p; }
+  HN[k] = i; HF[k] = f;
+}
+function hpop() {
+  const top = HN[0]; hl--;
+  if (hl > 0) {
+    const i = HN[hl], f = HF[hl]; let k = 0;
+    for (;;) { let c = 2 * k + 1; if (c >= hl) break; if (c + 1 < hl && HF[c + 1] < HF[c]) c++; if (HF[c] >= f) break; HN[k] = HN[c]; HF[k] = HF[c]; k = c; }
+    HN[k] = i; HF[k] = f;
+  }
+  return top;
+}
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function findPath(sx, sy, goal, hx, hy, maxN = 4500) {
+  stampC++; hl = 0;
+  const H = (x, y) => { const dx = Math.abs(x - hx), dy = Math.abs(y - hy); return Math.max(dx, dy) + .414 * Math.min(dx, dy); };
+  const s = sy * MW + sx;
+  gS[s] = 0; stamp[s] = stampC; came[s] = -1; hpush(s, H(sx, sy));
+  let best = s, bh = 1e9, found = -1, n = 0;
+  while (hl > 0 && n < maxN) {
+    const c = hpop();
+    if (closed[c] === stampC) continue;
+    closed[c] = stampC; n++;
+    const cx = c % MW, cy = c / MW | 0;
+    if (goal(cx, cy)) { found = c; break; }
+    const h = H(cx, cy);
+    if (h < bh) { bh = h; best = c; }
+    for (const [dx, dy] of DIRS) {
+      const nx = cx + dx, ny = cy + dy;
+      if (!inB(nx, ny)) continue;
+      const ni = ny * MW + nx;
+      if (!walk(ni)) continue;
+      if (dx && dy && (!walk(cy * MW + nx) || !walk(ny * MW + cx))) continue;
+      const ng = gS[c] + (dx && dy ? 1.414 : 1);
+      if (stamp[ni] === stampC && ng >= gS[ni]) continue;
+      stamp[ni] = stampC; gS[ni] = ng; came[ni] = c;
+      hpush(ni, ng + H(nx, ny));
+    }
+  }
+  const end = found >= 0 ? found : best, out = [];
+  for (let c = end; c !== s && c >= 0; c = came[c]) out.push(c);
+  out.reverse();
+  return { tiles: out, reached: found >= 0 };
+}
+function ptGoal(px, py) {
+  const tx = clamp(px / T | 0, 0, MW - 1), ty = clamp(py / T | 0, 0, MH - 1);
+  if (walk(ty * MW + tx)) return (x, y) => x === tx && y === ty;
+  return (x, y) => Math.max(Math.abs(x - tx), Math.abs(y - ty)) <= 1;
+}
+const rectGoal = e => (x, y) => x >= e.tx - 1 && x <= e.tx + e.size && y >= e.ty - 1 && y <= e.ty + e.size;
+const rangeGoal = (e, rpx) => (x, y) => edgeDistXY((x + .5) * T, (y + .5) * T, e) <= rpx;
+
+function stepPath(u) {
+  if (!u.path || !u.path.length) return true;
+  const sp = UNITS[u.type].speed * DT;
+  const wp = u.path[0], dx = wp.x - u.x, dy = wp.y - u.y, d = Math.hypot(dx, dy);
+  if (d > .01) u.face = Math.atan2(dy, dx);
+  if (d <= sp) { u.x = wp.x; u.y = wp.y; u.path.shift(); return !u.path.length; }
+  u.x += dx / d * sp; u.y += dy / d * sp;
+  // détection de blocage
+  u.stT += DT;
+  if (u.stT > 1) {
+    if (Math.hypot(u.x - u.lx, u.y - u.ly) < UNITS[u.type].speed * .25) { u.path = null; u.rpT = 0; }
+    u.stT = 0; u.lx = u.x; u.ly = u.y;
+  }
+  return false;
+}
+/* retourne 1 arrivé, 0 en route, -1 échec */
+function approach(u, key, test, goal, hx, hy, finalPt) {
+  if (test(u.x, u.y)) { u.path = null; u.fails = 0; return 1; }
+  if (!u.path || (u.pkey !== key && u.rpT <= 0)) {
+    if (u.rpT > 0) return 0;
+    u.rpT = .45;
+    const p = findPath(clamp(u.x / T | 0, 0, MW - 1), clamp(u.y / T | 0, 0, MH - 1), goal, clamp(hx / T | 0, 0, MW - 1), clamp(hy / T | 0, 0, MH - 1));
+    u.pkey = key;
+    u.path = p.tiles.map(i => ({ x: (i % MW + .5) * T, y: ((i / MW | 0) + .5) * T }));
+    if (p.reached && finalPt && walkPx(finalPt.x, finalPt.y)) { if (u.path.length) u.path[u.path.length - 1] = finalPt; else u.path.push(finalPt); }
+    if (!u.path.length) {
+      u.path = [{ x: ((u.x / T | 0) + .5) * T, y: ((u.y / T | 0) + .5) * T }];
+      if (++u.fails > 3) { u.path = null; return -1; }
+    }
+    u.stT = 0; u.lx = u.x; u.ly = u.y;
+  }
+  if (stepPath(u)) {
+    u.path = null;
+    if (!test(u.x, u.y) && ++u.fails > 4) return -1;
+  }
+  return 0;
+}
+function setOrder(u, o) { u.order = o; u.path = null; u.fails = 0; u.rpT = 0; u.pkey = ''; }
+
+/* =====================================================================
+   Logique des unités
+   ===================================================================== */
+function isVisTo(owner, e) {
+  if (owner !== 0) return true;
+  if (e.owner === 0) return true;
+  return G.vis[tIdx(e.x, e.y)] === 1;
+}
+function findEnemy(u, sightTiles) {
+  let best = null, bd = sightTiles * T;
+  for (const e of G.live) {
+    if (e.owner === u.owner || e.owner < 0 || e.dead) continue;
+    let d = edgeDist(u, e);
+    if (e.kind === 'bld') { if (e.type === 'farm') d += 4 * T; d += 3 * T; }
+    else if (e.type === 'villager' && u.owner === 1) d += T; // l'IA préfère les soldats
+    if (d < bd && isVisTo(u.owner, e)) { bd = d; best = e; }
+  }
+  return best;
+}
+function calcDmg(D, t) {
+  const cls = t.kind === 'bld' ? 'bld' : UNITS[t.type].cls;
+  const arm = t.kind === 'bld' ? BLDS[t.type].armor : UNITS[t.type].armor;
+  let base = D.atk + ((D.bonus && D.bonus[cls]) || 0);
+  if (t.kind === 'bld' && !(D.bonus && D.bonus.bld)) base *= .5;
+  return Math.max(1, base - arm);
+}
+function strike(src, D, t) {
+  if (D.proj) {
+    G.proj.push({ x: src.x, y: src.y - (src.kind === 'bld' ? 18 : 4), sx: src.x, sy: src.y, t, tx: t.x, ty: t.y, kind: D.proj, dmg: calcDmg(D, t),
+      owner: src.owner, src, spd: D.proj === 'rock' ? 210 : 360, splash: D.splash || 0, d0: Math.hypot(t.x - src.x, t.y - src.y) });
+  } else applyDmg(t, calcDmg(D, t), src);
+}
+function applyDmg(t, dmg, src) {
+  if (t.dead) return;
+  t.hp -= dmg;
+  if (t.owner === 0 && src && src.owner === 1 && G.alertT <= 0) {
+    G.alertT = 12;
+    msg(t.kind === 'bld' ? 'Un bâtiment est attaqué !' : 'Vos unités sont attaquées !', 'bad');
+    G.pings.push({ x: t.x, y: t.y, t: 0 });
+  }
+  if (t.kind === 'unit' && src && !src.dead && src.kind === 'unit' && src.owner !== t.owner) {
+    if (t.type !== 'villager' && (!t.order || t.order.type === 'move' && t.order.auto)) setOrder(t, { type: 'attack', target: src, auto: true, hx: t.x, hy: t.y });
+  }
+  if (t.hp <= 0) kill(t, src);
+}
+
+function updUnit(u) {
+  const D = UNITS[u.type];
+  u.atkCd -= DT; u.scanT -= DT; u.rpT -= DT;
+  const o = u.order;
+  if (!o) {
+    if (u.type !== 'villager' && u.scanT <= 0) {
+      u.scanT = .5;
+      const e = findEnemy(u, D.sight);
+      if (e) setOrder(u, { type: 'attack', target: e, auto: true, hx: u.x, hy: u.y });
+    }
+    return;
+  }
+  switch (o.type) {
+    case 'move': case 'amove': {
+      if (o.type === 'amove' && u.scanT <= 0) {
+        u.scanT = .5;
+        const e = findEnemy(u, D.sight);
+        if (e) { setOrder(u, { type: 'attack', target: e, resume: o }); return; }
+      }
+      const r = approach(u, 'p' + o.x + ',' + o.y, (x, y) => Math.hypot(x - o.x, y - o.y) < 4, ptGoal(o.x, o.y), o.x, o.y, { x: o.x, y: o.y });
+      if (r !== 0) setOrder(u, null);
+      break;
+    }
+    case 'attack': doAttack(u, o, D); break;
+    case 'gather': doGather(u, o); break;
+    case 'build': doBuild(u, o); break;
+  }
+}
+function doAttack(u, o, D) {
+  const t = o.target;
+  const back = () => setOrder(u, o.resume || null);
+  if (!t || t.dead || t.owner === u.owner) return back();
+  if (u.owner === 0 && t.kind === 'unit' && !isVisTo(0, t)) return back();
+  if (o.auto && Math.hypot(u.x - o.hx, u.y - o.hy) > 9 * T) return setOrder(u, { type: 'move', x: o.hx, y: o.hy, auto: true });
+  const rng = D.range * T + (D.range < 1 ? 4 : 0);
+  const d = edgeDist(u, t);
+  if (d <= rng) {
+    u.path = null;
+    u.face = Math.atan2(t.y - u.y, t.x - u.x);
+    if (u.atkCd <= 0) { u.atkCd = D.rof; strike(u, D, t); }
+    return;
+  }
+  // Poursuite directe au corps à corps quand la cible est proche
+  if (t.kind === 'unit' && d < 3 * T) {
+    const a = Math.atan2(t.y - u.y, t.x - u.x), sp = D.speed * DT;
+    const nx = u.x + Math.cos(a) * sp, ny = u.y + Math.sin(a) * sp;
+    if (walkPx(nx, ny)) { u.x = nx; u.y = ny; u.face = a; u.path = null; return; }
+  }
+  const key = 'a' + t.id + (t.kind === 'unit' ? ':' + (t.x / T | 0) + ',' + (t.y / T | 0) : '');
+  const r = approach(u, key, (x, y) => edgeDistXY(x, y, t) <= rng, rangeGoal(t, rng), t.x, t.y);
+  if (r === -1) back();
+}
+function nearestDrop(u, rtype) {
+  let best = null, bd = 1e9;
+  for (const b of G.live) {
+    if (b.kind !== 'bld' || b.owner !== u.owner || !b.built) continue;
+    const d = BLDS[b.type].drop;
+    if (!d || !d.includes(rtype)) continue;
+    const dd = edgeDist(u, b);
+    if (dd < bd) { bd = dd; best = b; }
+  }
+  return best;
+}
+function findNearbyRes(sub, rtype, x, y, maxTiles, exclude) {
+  let best = null, bd = maxTiles * T;
+  for (const e of G.ents) {
+    if (e.kind !== 'res' || e.dead || e === exclude) continue;
+    if (sub ? e.sub !== sub : e.rtype !== rtype) continue;
+    const d = Math.hypot(e.x - x, e.y - y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
+function farmFree(f, u) { const w = f.worker && G.byId.get(f.worker); return !w || w === u || !w.order || w.order.target !== f; }
+function doGather(u, o) {
+  const P = G.players[u.owner];
+  if (o.phase === 'drop') {
+    let d = o.dropTo && !o.dropTo.dead && o.dropTo.built ? o.dropTo : nearestDrop(u, u.carry.type);
+    o.dropTo = d;
+    if (!d) { if (u.owner === 0) msg(`Aucun point de dépôt pour le ${RES_NAME[u.carry.type]} : construisez ${u.carry.type === 'food' ? 'un moulin' : 'un entrepôt'}.`, 'bad'); return setOrder(u, null); }
+    const r = approach(u, 'd' + d.id, (x, y) => edgeDistXY(x, y, d) <= 24, rectGoal(d), d.x, d.y);
+    if (r === 1) {
+      let amt = u.carry.amt;
+      if (u.owner === 1) amt *= DIFF[G.diff].mult; else G.stats.gathered += amt;
+      P.res[u.carry.type] += amt;
+      u.carry.amt = 0;
+      o.phase = 'go'; o.dropTo = null;
+    } else if (r === -1) setOrder(u, null);
+    return;
+  }
+  let t = o.target;
+  const empty = t && (t.dead || (t.kind === 'res' ? t.amount <= 0 : (!t.built || t.food <= 0)));
+  if (!t || empty) {
+    const n = o.sub ? findNearbyRes(o.sub, o.rtype, o.lx, o.ly, 8, t) : null;
+    if (n) o.target = t = n;
+    else if (u.carry.amt > 0) { o.phase = 'drop'; o.target = null; return; }
+    else return setOrder(u, null);
+  }
+  o.lx = t.x; o.ly = t.y;
+  if (u.carry.amt >= CARRY) { o.phase = 'drop'; return; }
+  const r = approach(u, 'g' + t.id, (x, y) => edgeDistXY(x, y, t) <= 24, rectGoal(t), t.x, t.y);
+  if (r === -1) {
+    const n = o.sub ? findNearbyRes(o.sub, o.rtype, t.x, t.y, 10, t) : null;
+    if (n) { o.target = n; u.fails = 0; u.path = null; } else setOrder(u, null);
+    return;
+  }
+  if (r !== 1) return;
+  u.working = true;
+  u.face = Math.atan2(t.y - u.y, t.x - u.x);
+  if (t.kind === 'bld') t.worker = u.id;
+  u.gAcc += (t.kind === 'res' ? RES_DEF[t.sub].rate : FARM_RATE) * DT;
+  if (u.gAcc >= 1) {
+    const n = Math.floor(u.gAcc); u.gAcc -= n;
+    if (u.carry.type !== o.rtype) { u.carry.type = o.rtype; u.carry.amt = 0; }
+    const avail = t.kind === 'res' ? t.amount : t.food;
+    const take = Math.min(n, avail, CARRY - u.carry.amt);
+    if (t.kind === 'res') { t.amount -= take; if (t.amount <= 0) kill(t); }
+    else { t.food -= take; if (t.food <= 0) farmDepleted(t); }
+    u.carry.amt += take;
+  }
+}
+function farmDepleted(f) {
+  const P = G.players[f.owner];
+  if (P.res.wood >= 60) { P.res.wood -= 60; f.food = FARM_FOOD; }
+  else { kill(f); if (f.owner === 0) msg('Une ferme est épuisée : 60 bois nécessaires pour la ressemer.', 'bad'); }
+}
+function doBuild(u, o) {
+  const b = o.target;
+  if (!b || b.dead) return setOrder(u, null);
+  if (b.built && b.hp >= b.maxHp) return afterBuild(u, b);
+  const r = approach(u, 'b' + b.id, (x, y) => edgeDistXY(x, y, b) <= 24, rectGoal(b), b.x, b.y);
+  if (r === -1) return setOrder(u, null);
+  if (r !== 1) return;
+  u.working = true;
+  u.face = Math.atan2(b.y - u.y, b.x - u.x);
+  const d = BLDS[b.type];
+  if (!b.built) {
+    b.prog += DT;
+    b.hp = Math.min(b.maxHp, b.hp + b.maxHp * DT / d.time);
+    if (b.prog >= d.time) { b.built = true; onBuilt(b); afterBuild(u, b); }
+  } else {
+    b.hp = Math.min(b.maxHp, b.hp + b.maxHp / d.time * .5 * DT);
+  }
+}
+function onBuilt(b) {
+  if (b.type === 'farm') b.food = FARM_FOOD;
+  if (b.owner === 0 && b.type !== 'farm') msg(`${BLDS[b.type].name} terminé${['house','tower'].includes(b.type) ? 'e' : ''}.`);
+}
+function afterBuild(u, b) {
+  if (b.type === 'farm' && b.food > 0) {
+    if (farmFree(b, u)) return setOrder(u, { type: 'gather', target: b, rtype: 'food', phase: 'go' });
+    return setOrder(u, null);
+  }
+  const drops = BLDS[b.type].drop;
+  if (drops && b.type !== 'tc') {
+    let best = null, bd = 8 * T;
+    for (const e of G.ents) {
+      if (e.kind !== 'res' || e.dead || !drops.includes(e.rtype)) continue;
+      const dd = Math.hypot(e.x - b.x, e.y - b.y);
+      if (dd < bd) { bd = dd; best = e; }
+    }
+    if (best) return setOrder(u, { type: 'gather', target: best, rtype: best.rtype, sub: best.sub, phase: 'go' });
+  }
+  setOrder(u, null);
+}
+
+/* =====================================================================
+   Bâtiments : production, recherche, défense
+   ===================================================================== */
+function queueTrain(owner, b, type) {
+  const P = G.players[owner];
+  const c = UNITS[type].cost;
+  if (b.queue.length >= 5) { if (owner === 0) msg('File de production pleine.', 'bad'); return false; }
+  if (!canAfford(P, c)) { if (owner === 0) msg(`Il manque ${missing(P, c)}.`, 'bad'); return false; }
+  pay(P, c);
+  b.queue.push({ type });
+  return true;
+}
+function queueAge(owner, b) {
+  const P = G.players[owner];
+  if (P.age >= 3 || P.researching) return false;
+  const A = AGES[P.age + 1];
+  if (!canAfford(P, A.cost)) { if (owner === 0) msg(`Il manque ${missing(P, A.cost)} pour l'${A.name}.`, 'bad'); return false; }
+  if (b.queue.length >= 5) return false;
+  pay(P, A.cost);
+  P.researching = true;
+  b.queue.push({ type: 'age', age: P.age + 1 });
+  return true;
+}
+function cancelQueue(b, i) {
+  const q = b.queue[i]; if (!q) return;
+  const P = G.players[b.owner];
+  if (q.type === 'age') { refund(P, AGES[q.age].cost); P.researching = false; }
+  else refund(P, UNITS[q.type].cost);
+  b.queue.splice(i, 1);
+  if (i === 0) b.qT = 0;
+}
+function updBld(b) {
+  if (!b.built || b.type === 'farm') return;
+  const d = BLDS[b.type], P = G.players[b.owner];
+  if (b.queue.length) {
+    const q = b.queue[0];
+    const time = q.type === 'age' ? AGES[q.age].time : UNITS[q.type].time;
+    if (q.type !== 'age' && P.pop >= P.popCap) {
+      if (b.owner === 0 && G.houseT <= 0) { G.houseT = 15; msg(P.popCap >= 200 ? 'Population maximale atteinte.' : 'Population au maximum : construisez des maisons.', 'bad'); }
+    } else {
+      b.qT += DT;
+      if (b.qT >= time) {
+        b.qT = 0; b.queue.shift();
+        if (q.type === 'age') {
+          P.age = q.age; P.researching = false;
+          msg(b.owner === 0 ? `Vous entrez dans l'${AGES[q.age].name} !` : `L'ennemi est entré dans l'${AGES[q.age].name}.`, b.owner === 0 ? 'good' : 'bad');
+        } else { spawnFrom(b, q.type); P.pop++; }
+      }
+    }
+  }
+  if (d.atk) {
+    b.atkCd -= DT;
+    if (b.atkCd <= 0) {
+      let best = null, bd = d.range * T;
+      for (const e of G.live) {
+        if (e.kind !== 'unit' || e.owner === b.owner || e.dead) continue;
+        const dd = edgeDistXY(e.x, e.y, b);
+        if (dd < bd) { bd = dd; best = e; }
+      }
+      if (best) { b.atkCd = d.rof; strike(b, d, best); }
+    }
+  }
+}
+function spawnFrom(b, type) {
+  const tgt = b.rally ? (b.rally.ent && !b.rally.ent.dead ? b.rally.ent : b.rally) : { x: WW / 2, y: WH / 2 };
+  let best = -1, bd = 1e9;
+  for (let y = b.ty - 1; y <= b.ty + b.size; y++) for (let x = b.tx - 1; x <= b.tx + b.size; x++) {
+    if (!inB(x, y) || (x >= b.tx && x < b.tx + b.size && y >= b.ty && y < b.ty + b.size)) continue;
+    const i = y * MW + x;
+    if (!walk(i)) continue;
+    const d = Math.hypot((x + .5) * T - tgt.x, (y + .5) * T - tgt.y);
+    if (d < bd) { bd = d; best = i; }
+  }
+  if (best < 0) best = nearestWalk(b.tx, b.ty);
+  const u = mkUnit(type, b.owner, (best % MW + .5) * T + (Math.random() - .5) * 6, ((best / MW | 0) + .5) * T + (Math.random() - .5) * 6);
+  if (b.owner === 0) G.stats.trained++;
+  if (b.rally) {
+    const re = b.rally.ent;
+    if (re && !re.dead && type === 'villager' && (re.kind === 'res' || (re.type === 'farm' && re.owner === b.owner)))
+      setOrder(u, { type: 'gather', target: re, rtype: re.kind === 'res' ? re.rtype : 'food', sub: re.sub, phase: 'go' });
+    else setOrder(u, { type: 'move', x: b.rally.x + (Math.random() - .5) * 20, y: b.rally.y + (Math.random() - .5) * 20 });
+  }
+  return u;
+}
+
+/* =====================================================================
+   Placement de bâtiments
+   ===================================================================== */
+function canPlace(type, tx, ty, owner, margin = 0) {
+  const s = BLDS[type].size;
+  for (let y = ty - margin; y < ty + s + margin; y++) for (let x = tx - margin; x < tx + s + margin; x++) {
+    const inner = x >= tx && x < tx + s && y >= ty && y < ty + s;
+    if (!inB(x, y)) { if (inner) return false; continue; }
+    const i = y * MW + x;
+    if (G.terrain[i] === 1 || G.bgrid[i]) return false;
+    if (inner && owner === 0 && !G.expl[i]) return false;
+    if (inner && (x < 1 || y < 1 || x > MW - 2 || y > MH - 2)) return false;
+  }
+  return true;
+}
+function reqMet(owner, type) {
+  const d = BLDS[type], P = G.players[owner];
+  if ((d.age || 1) > P.age) return false;
+  if (d.req && !G.live.some(b => b.kind === 'bld' && b.owner === owner && b.type === d.req && b.built)) return false;
+  return true;
+}
+
+/* =====================================================================
+   Brouillard de guerre
+   ===================================================================== */
+function reveal(cx, cy, r, arr) {
+  const r2 = r * r;
+  for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+    if (!inB(x, y)) continue;
+    const dx = x + .5 - cx, dy = y + .5 - cy;
+    if (dx * dx + dy * dy <= r2) arr[y * MW + x] = 1;
+  }
+}
+function computeVis() {
+  G.vis.fill(0);
+  for (const e of G.ents) {
+    if (e.dead || e.owner !== 0) continue;
+    const s = e.kind === 'unit' ? UNITS[e.type].sight : (e.built ? BLDS[e.type].sight : 2);
+    reveal(e.x / T, e.y / T, s, G.vis);
+  }
+  for (let i = 0; i < N; i++) if (G.vis[i]) G.expl[i] = 1;
+  for (const e of G.ents) if (e.kind === 'bld' && e.owner === 1 && !e.seen && G.vis[tIdx(e.x, e.y)]) e.seen = true;
+  updateFogCanvas();
+}
+
+/* =====================================================================
+   IA adverse
+   ===================================================================== */
+function aiUpdate() {
+  const A = G.ai;
+  A.t -= DT; if (A.t > 0) return; A.t = 1;
+  const me = 1, P = G.players[me], cfg = DIFF[G.diff];
+  const my = G.live.filter(e => e.owner === me);
+  const tc = my.find(e => e.kind === 'bld' && e.type === 'tc');
+  const vills = my.filter(e => e.kind === 'unit' && e.type === 'villager');
+  const army = my.filter(e => e.kind === 'unit' && e.type !== 'villager');
+  const blds = my.filter(e => e.kind === 'bld');
+  const cnt = t => blds.filter(b => b.type === t).length;
+  const pend = t => blds.some(b => b.type === t && !b.built);
+  const base = tc || blds[0] || vills[0];
+  const target = G.live.find(e => e.owner === 0 && e.kind === 'bld' && e.type === 'tc') || G.live.find(e => e.owner === 0);
+  if (!base) return;
+  const bx = base.x, by = base.y;
+
+  // Défense
+  let threat = null;
+  for (const e of G.live) if (e.owner === 0 && e.kind === 'unit' && Math.hypot(e.x - bx, e.y - by) < 15 * T) { threat = e; break; }
+  if (threat) for (const a of army) if (!a.order || a.order.type === 'move') setOrder(a, { type: 'amove', x: threat.x, y: threat.y });
+
+  // Villageois
+  const vT = Math.max(6, [0, 11, 20, 28][P.age] + cfg.vBonus);
+  const queuedV = tc ? tc.queue.filter(q => q.type === 'villager').length : 0;
+  const ageGoal = (P.age === 1 && vills.length >= 10 && cnt('barracks')) || (P.age === 2 && vills.length >= 17 && (cnt('range') + cnt('stable')) > 0);
+  if (tc && tc.built && vills.length + queuedV < vT && tc.queue.length < 2 && !P.researching) queueTrain(me, tc, 'villager');
+  if (tc && tc.built && ageGoal && !P.researching) queueAge(me, tc);
+  const saving = ageGoal && !P.researching;
+
+  // Constructions
+  if (P.popCap < 200 && P.pop + 4 >= P.popCap && !pend('house')) aiBuild('house', bx, by, 4, 11, 1);
+  if (vills.length >= 4 && !cnt('camp')) {
+    const tr = findNearbyRes('tree', 'wood', bx, by, 30);
+    if (tr) aiBuild('camp', tr.x, tr.y, 2, 6, 1);
+  }
+  if (vills.length >= 7 && !cnt('mill')) {
+    const br = findNearbyRes('berry', 'food', bx, by, 12);
+    aiBuild('mill', br ? br.x : bx, br ? br.y : by, br ? 2 : 4, br ? 5 : 8, 1);
+  }
+  if (!saving) {
+    if (vills.length >= 9 && !cnt('barracks')) aiBuild('barracks', bx, by, 5, 12, 1);
+    if (P.age >= 2 && cnt('camp') < 2) {
+      const gm = findNearbyRes('gold', 'gold', bx, by, 30);
+      if (gm && Math.hypot(gm.x - bx, gm.y - by) > 6 * T) aiBuild('camp', gm.x, gm.y, 2, 5, 1);
+    }
+    if (P.age >= 2 && !cnt('range')) aiBuild('range', bx, by, 5, 13, 1);
+    else if (P.age >= 2 && !cnt('stable')) aiBuild('stable', bx, by, 5, 13, 1);
+    else if (P.age >= 2 && !cnt('tower') && P.res.stone >= 125) aiBuild('tower', (bx + (target ? target.x : bx)) / 2 * .25 + bx * .75, (by + (target ? target.y : by)) / 2 * .25 + by * .75, 3, 7, 1);
+    if (P.age >= 3 && !cnt('workshop')) aiBuild('workshop', bx, by, 6, 14, 1);
+    if (P.age >= 3 && cnt('barracks') < 2 && P.res.wood > 450) aiBuild('barracks', bx, by, 6, 14, 1);
+  }
+
+  // Répartition des villageois
+  const mix = AI_MIX[P.age];
+  const counts = { food: 0, wood: 0, gold: 0, stone: 0 };
+  for (const v of vills) if (v.order && v.order.type === 'gather') counts[v.order.rtype]++;
+  const deficit = k => mix[k] * vills.length - counts[k];
+  for (const v of vills) {
+    if (v.order) continue;
+    const ks = RES_KEYS.slice().sort((a, b) => deficit(b) - deficit(a));
+    for (const k of ks) { if (aiAssign(v, k, bx, by)) { counts[k]++; break; } }
+  }
+  A.rb -= 1;
+  if (A.rb <= 0) {
+    A.rb = 6;
+    const ks = RES_KEYS.slice().sort((a, b) => deficit(b) - deficit(a));
+    const need = ks[0], surplus = ks[ks.length - 1];
+    if (deficit(need) >= 2 && deficit(surplus) <= -1.5) {
+      const v = vills.find(v => v.order && v.order.type === 'gather' && v.order.rtype === surplus);
+      if (v) { setOrder(v, null); aiAssign(v, need, bx, by); }
+    }
+  }
+
+  // Armée
+  if (!saving || threat || army.length < A.waveSize) {
+    const reserve = vills.length < vT ? 55 : 0;
+    for (const b of blds) {
+      if (!b.built || b.type === 'tc' || !BLDS[b.type].trains || b.queue.length >= 2) continue;
+      const opts = BLDS[b.type].trains.filter(t => (UNITS[t].age || 1) <= P.age);
+      const t = opts[Math.random() * opts.length | 0];
+      const c = UNITS[t].cost;
+      if (P.res.food - (c.food || 0) >= reserve && canAfford(P, c)) queueTrain(me, b, t);
+    }
+  }
+
+  // Vagues d'attaque
+  const ready = army.filter(a => !a.order || a.order.type === 'move');
+  if (!threat && target && G.t >= A.nextWave && (ready.length >= A.waveSize || (G.t >= A.nextWave + 90 && ready.length >= Math.ceil(A.waveSize / 2)))) {
+    for (const a of army) setOrder(a, { type: 'amove', x: target.x + (Math.random() - .5) * 60, y: target.y + (Math.random() - .5) * 60 });
+    A.nextWave = G.t + cfg.gap;
+    A.waveSize += 3;
+    msg('Une armée ennemie marche sur votre ville !', 'bad');
+  } else if (!threat) {
+    // point de rassemblement devant la base
+    const gx = bx + (WW / 2 - bx) * .18, gy = by + (WH / 2 - by) * .18;
+    for (const a of army) if (!a.order && Math.hypot(a.x - gx, a.y - gy) > 5 * T) setOrder(a, { type: 'move', x: gx + (Math.random() - .5) * 90, y: gy + (Math.random() - .5) * 90 });
+  }
+  if (!A.warned && G.t >= A.nextWave - 45) { A.warned = true; msg('Des éclaireurs signalent des troupes ennemies qui se rassemblent.', 'bad'); }
+}
+function aiAssign(v, k, bx, by) {
+  if (k === 'food') {
+    const br = findNearbyRes('berry', 'food', bx, by, 14);
+    if (br) { setOrder(v, { type: 'gather', target: br, rtype: 'food', sub: 'berry', phase: 'go' }); return true; }
+    const f = G.live.find(e => e.kind === 'bld' && e.type === 'farm' && e.owner === 1 && e.built && farmFree(e, v));
+    if (f) { f.worker = v.id; setOrder(v, { type: 'gather', target: f, rtype: 'food', phase: 'go' }); return true; }
+    const mill = G.live.find(e => e.kind === 'bld' && e.type === 'mill' && e.owner === 1 && e.built);
+    const c = mill || { x: bx, y: by };
+    if (mill && aiBuild('farm', c.x, c.y, 1, 6, 0, v)) return true;
+    return false;
+  }
+  const sub = k === 'wood' ? 'tree' : k;
+  const r = findNearbyRes(sub, k, v.x, v.y, 40);
+  if (!r) return false;
+  setOrder(v, { type: 'gather', target: r, rtype: k, sub, phase: 'go' });
+  return true;
+}
+function aiBuild(type, cx, cy, minR, maxR, margin, builder) {
+  const P = G.players[1];
+  if (type !== 'farm' && G.live.some(b => b.kind === 'bld' && b.owner === 1 && b.type === type && !b.built)) return false;
+  if (!canAfford(P, BLDS[type].cost) || !reqMet(1, type)) return false;
+  const s = BLDS[type].size, ctx0 = cx / T | 0, cty = cy / T | 0;
+  let spot = null;
+  for (let r = minR; r <= maxR && !spot; r++) {
+    const c = [];
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const tx = ctx0 + dx - (s >> 1), ty = cty + dy - (s >> 1);
+      if (canPlace(type, tx, ty, 1, margin)) c.push([tx, ty]);
+    }
+    if (c.length) spot = c[Math.random() * c.length | 0];
+  }
+  if (!spot) return false;
+  if (!builder) {
+    let bd = 1e9;
+    for (const v of G.live) {
+      if (v.kind !== 'unit' || v.owner !== 1 || v.type !== 'villager' || (v.order && v.order.type === 'build')) continue;
+      const d = Math.hypot(v.x - spot[0] * T, v.y - spot[1] * T);
+      if (d < bd) { bd = d; builder = v; }
+    }
+  }
+  if (!builder) return false;
+  pay(P, BLDS[type].cost);
+  const b = placeBld(type, 1, spot[0], spot[1], false);
+  setOrder(builder, { type: 'build', target: b });
+  return true;
+}
+
+/* =====================================================================
+   Boucle de mise à jour
+   ===================================================================== */
+function update(dt) {
+  DT = dt;
+  G.t += dt;
+  G.alertT -= dt; G.houseT -= dt;
+  G.live = G.ents.filter(e => !e.dead && e.kind !== 'res');
+  for (const P of G.players) { P.pop = 0; P.popCap = 0; }
+  for (const e of G.live) {
+    if (e.kind === 'unit') G.players[e.owner].pop++;
+    else if (e.built && BLDS[e.type].pop) G.players[e.owner].popCap += BLDS[e.type].pop;
+  }
+  for (const P of G.players) P.popCap = Math.min(200, P.popCap);
+
+  const units = G.live.filter(e => e.kind === 'unit');
+  for (const u of units) { u.working = false; if (!u.dead) updUnit(u); }
+  // séparation
+  for (let i = 0; i < units.length; i++) {
+    const a = units[i]; if (a.dead) continue;
+    for (let j = i + 1; j < units.length; j++) {
+      const b = units[j]; if (b.dead) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, rs = a.r + b.r - 2;
+      if (Math.abs(dx) > rs || Math.abs(dy) > rs) continue;
+      const d = Math.hypot(dx, dy) || .01;
+      if (d >= rs) continue;
+      const push = (rs - d) * .5 * Math.min(1, dt * 12);
+      const nx = dx / d * push, ny = dy / d * push;
+      const aw = a.working ? .2 : 1, bw = b.working ? .2 : 1;
+      if (walkPx(a.x - nx * aw, a.y - ny * aw)) { a.x -= nx * aw; a.y -= ny * aw; }
+      if (walkPx(b.x + nx * bw, b.y + ny * bw)) { b.x += nx * bw; b.y += ny * bw; }
+    }
+  }
+  for (const b of G.live) if (b.kind === 'bld' && !b.dead) updBld(b);
+
+  // projectiles
+  for (const p of G.proj) {
+    if (p.kind === 'arrow' && p.t && !p.t.dead) { p.tx = p.t.x; p.ty = p.t.y; }
+    const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy), st = p.spd * dt;
+    if (d <= st) {
+      p.done = true;
+      if (p.splash) {
+        G.fx.push({ type: 'dust', x: p.tx, y: p.ty, t: 0, life: .5 });
+        for (const e of G.live) {
+          if (e.dead || e.owner === p.owner || e.owner < 0) continue;
+          const ed = edgeDistXY(p.tx, p.ty, e);
+          if (ed <= p.splash) applyDmg(e, e === p.t ? p.dmg : p.dmg * .5, p.src);
+        }
+      } else if (p.t && !p.t.dead) applyDmg(p.t, p.dmg, p.src);
+    } else { p.x += dx / d * st; p.y += dy / d * st; }
+  }
+  G.proj = G.proj.filter(p => !p.done);
+  for (const f of G.fx) f.t += dt;
+  G.fx = G.fx.filter(f => f.t < f.life);
+  for (const p of G.pings) p.t += dt;
+  G.pings = G.pings.filter(p => p.t < 3);
+
+  G.visT -= dt;
+  if (G.visT <= 0) { G.visT = .2; computeVis(); }
+  aiUpdate();
+
+  if (G.ents.some(e => e.dead)) {
+    G.ents = G.ents.filter(e => !e.dead);
+    const n = G.sel.length;
+    G.sel = G.sel.filter(e => !e.dead);
+    if (n !== G.sel.length) panelSig = cmdSig = '';
+  }
+  G.endT -= dt;
+  if (G.endT <= 0) { G.endT = 1; checkEnd(); }
+}
+function checkEnd() {
+  const alive = [0, 1].map(p => {
+    const mine = G.live.filter(e => e.owner === p && !e.dead);
+    const tc = mine.some(e => e.kind === 'bld' && e.type === 'tc');
+    const units = mine.some(e => e.kind === 'unit');
+    return tc || units;
+  });
+  if (!alive[1]) endGame(true);
+  else if (!alive[0]) endGame(false);
+}
+function endGame(win) {
+  if (G.over) return;
+  G.over = true; G.running = false;
+  $('#card-start').hidden = true;
+  $('#card-end').hidden = false;
+  $('#end-title').textContent = win ? 'Victoire' : 'Défaite';
+  $('#end-text').textContent = win
+    ? "L'Hôtel de ville ennemi est tombé et ses dernières troupes sont en déroute. La vallée est à vous."
+    : "Votre Hôtel de ville est en ruines et vos derniers fidèles ont été dispersés.";
+  const s = G.stats;
+  $('#end-stats').innerHTML = [
+    [fmtTime(G.t), 'Durée'], [s.trained, 'Unités formées'], [s.killed, 'Ennemis éliminés'], [s.lost, 'Unités perdues'], [Math.round(s.gathered), 'Ressources récoltées'],
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  $('#overlay').hidden = false;
+}
+
+/* =====================================================================
+   Rendu
+   ===================================================================== */
+const cv = $('#game'), ctx = cv.getContext('2d');
+const mm = $('#mini'), mctx = mm.getContext('2d');
+const view = $('#view');
+let VW = 800, VH = 600, DPR = 1;
+let terrainCv = null, miniTerrain = null;
+const fogCv = document.createElement('canvas'); fogCv.width = MW; fogCv.height = MH;
+const fogCtx = fogCv.getContext('2d');
+const fogImg = fogCtx.createImageData(MW, MH);
+
+function resize() {
+  const r = view.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  VW = Math.max(1, r.width); VH = Math.max(1, r.height);
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+  clampCam();
+}
+new ResizeObserver(resize).observe(view);
+
+function buildTerrainCanvas() {
+  const R = mulberry(7);
+  terrainCv = document.createElement('canvas');
+  terrainCv.width = WW; terrainCv.height = WH;
+  const c = terrainCv.getContext('2d');
+  // bruit doux pour les nuances d'herbe
+  const GN = 11, grid = [];
+  for (let i = 0; i < GN * GN; i++) grid.push(R());
+  const noise = (x, y) => {
+    const gx = x / MW * (GN - 1), gy = y / MH * (GN - 1), x0 = gx | 0, y0 = gy | 0, fx = gx - x0, fy = gy - y0;
+    const g = (a, b) => grid[Math.min(GN - 1, b) * GN + Math.min(GN - 1, a)];
+    return (g(x0, y0) * (1 - fx) + g(x0 + 1, y0) * fx) * (1 - fy) + (g(x0, y0 + 1) * (1 - fx) + g(x0 + 1, y0 + 1) * fx) * fy;
+  };
+  const isW = (x, y) => inB(x, y) && G.terrain[y * MW + x] === 1;
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const n = noise(x, y), px = x * T, py = y * T;
+    if (isW(x, y)) {
+      let shore = 0;
+      for (const [dx, dy] of DIRS) if (!isW(x + dx, y + dy) && inB(x + dx, y + dy)) shore++;
+      c.fillStyle = shore ? '#4B7F93' : '#3A6A82';
+      c.fillRect(px, py, T, T);
+      c.fillStyle = 'rgba(255,255,255,.07)';
+      for (let k = 0; k < 3; k++) c.fillRect(px + R() * 26, py + R() * 28, 6 + R() * 6, 1.5);
+    } else {
+      const l = 34 + n * 9 + (R() - .5) * 2.5, h = 88 + n * 14;
+      c.fillStyle = `hsl(${h},${30 + n * 10}%,${l}%)`;
+      c.fillRect(px, py, T, T);
+      for (let k = 0; k < 7; k++) {
+        c.fillStyle = R() < .5 ? `hsla(${h + 10},35%,${l - 7}%,.55)` : `hsla(${h - 8},40%,${l + 7}%,.45)`;
+        c.fillRect(px + R() * 30, py + R() * 30, 2, 2 + R() * 2);
+      }
+      // rives sableuses
+      let near = false;
+      for (const [dx, dy] of DIRS) if (isW(x + dx, y + dy)) near = true;
+      if (near) {
+        c.fillStyle = 'rgba(206,183,128,.75)';
+        for (const [dx, dy] of DIRS.slice(0, 4)) if (isW(x + dx, y + dy)) {
+          if (dx === 1) c.fillRect(px + T - 11, py, 11, T);
+          if (dx === -1) c.fillRect(px, py, 11, T);
+          if (dy === 1) c.fillRect(px, py + T - 11, T, 11);
+          if (dy === -1) c.fillRect(px, py, T, 11);
+        }
+      }
+    }
+  }
+  // mini-carte du terrain
+  miniTerrain = document.createElement('canvas');
+  miniTerrain.width = MW; miniTerrain.height = MH;
+  const m = miniTerrain.getContext('2d');
+  m.drawImage(terrainCv, 0, 0, MW, MH);
+}
+function updateFogCanvas() {
+  const d = fogImg.data;
+  for (let i = 0; i < N; i++) {
+    const a = G.vis[i] ? 0 : G.expl[i] ? 120 : 255;
+    d[i * 4] = 13; d[i * 4 + 1] = 10; d[i * 4 + 2] = 7; d[i * 4 + 3] = a;
+  }
+  fogCtx.putImageData(fogImg, 0, 0);
+}
+
+function centerOn(x, y) { cam.x = x - VW / cam.z / 2; cam.y = y - VH / cam.z / 2; clampCam(); }
+function clampCam() {
+  const vw = VW / cam.z, vh = VH / cam.z;
+  cam.x = vw > WW ? (WW - vw) / 2 : clamp(cam.x, -40, WW - vw + 40);
+  cam.y = vh > WH ? (WH - vh) / 2 : clamp(cam.y, -40, WH - vh + 40);
+}
+
+const ROOF = { house: '#9A4E2F', tc: '#56535E', mill: '#8A5A33', camp: '#6E5236', barracks: '#6A4B3C', range: '#7B5A2E', stable: '#7C4A2A', workshop: '#5B4A3A', tower: '#6F6A60' };
+
+function drawTree(e) {
+  const j = (e.id * 2654435761 >>> 0);
+  const ox = ((j & 7) - 3.5) * 1.1, oy = (((j >> 3) & 7) - 3.5) * 1.1, rr = 12 + ((j >> 6) & 3);
+  const cols = ['#2E5728', '#355F2B', '#2A4F2A', '#3B6630'];
+  const x = e.x + ox, y = e.y + oy;
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(x + 4, y + 5, rr, rr * .8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = cols[(j >> 9) & 3];
+  ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(160,200,110,.18)';
+  ctx.beginPath(); ctx.arc(x - 3, y - 4, rr * .55, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.18)';
+  ctx.beginPath(); ctx.arc(x + 4, y + 3, rr * .45, 0, 7); ctx.fill();
+  if (e.amount < e.max) { ctx.fillStyle = '#6B4A2B'; ctx.beginPath(); ctx.arc(x, y + rr * .2, 3, 0, 7); ctx.fill(); }
+}
+function drawRes(e) {
+  if (e.sub === 'tree') return drawTree(e);
+  const x = e.tx * T, y = e.ty * T;
+  if (e.sub === 'berry') {
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(e.x + 3, e.y + 4, 11, 8, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#3F6B2F'; ctx.beginPath(); ctx.arc(e.x, e.y, 11, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4E7E3A'; ctx.beginPath(); ctx.arc(e.x - 3, e.y - 3, 6, 0, 7); ctx.fill();
+    const n = Math.ceil(e.amount / e.max * 7);
+    ctx.fillStyle = '#C23A4A';
+    for (let i = 0; i < n; i++) { const a = i * 2.4 + e.id; ctx.beginPath(); ctx.arc(e.x + Math.cos(a) * 6.5, e.y + Math.sin(a) * 6.5, 2.2, 0, 7); ctx.fill(); }
+    return;
+  }
+  const gold = e.sub === 'gold';
+  const rocks = [[.3, .35, 10], [.68, .3, 9], [.5, .66, 12], [.22, .72, 7], [.78, .7, 8]];
+  const k = Math.max(.45, e.amount / e.max);
+  for (const [fx, fy, r] of rocks) {
+    const rx = x + fx * 64, ry = y + fy * 64, rr = r * (0.6 + .4 * k);
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(rx + 3, ry + 4, rr, rr * .75, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = gold ? '#6F6657' : '#9C988C'; ctx.beginPath(); ctx.arc(rx, ry, rr, 0, 7); ctx.fill();
+    ctx.fillStyle = gold ? '#857C6B' : '#B7B3A6'; ctx.beginPath(); ctx.arc(rx - rr * .3, ry - rr * .3, rr * .55, 0, 7); ctx.fill();
+    if (gold) { ctx.fillStyle = '#E8C04A'; ctx.fillRect(rx - 2, ry - 1, 4, 3); ctx.fillRect(rx + rr * .3, ry + rr * .2, 3, 2); }
+  }
+}
+function drawBld(b, ghost) {
+  const d = BLDS[b.type], x = b.tx * T, y = b.ty * T, s = b.size * T, oc = OWN[b.owner];
+  const p = b.built ? 1 : b.prog / d.time;
+  if (b.type === 'farm') {
+    ctx.fillStyle = '#7A5A34'; ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
+    const f = b.built ? b.food / FARM_FOOD : 0;
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = b.built ? `rgba(${140 + 60 * (1 - f)},${150 + 30 * f},60,${.55 + .4 * f})` : '#654827';
+      ctx.fillRect(x + 6, y + 6 + i * 9.4, s - 12, 4);
+    }
+    ctx.strokeStyle = oc; ctx.lineWidth = 1.5; ctx.strokeRect(x + 2.5, y + 2.5, s - 5, s - 5);
+    return;
+  }
+  if (!ghost) { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x + 7, y + 7, s - 4, s - 4); }
+  ctx.fillStyle = '#8B7A5A'; ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
+  if (!b.built && !ghost) ctx.globalAlpha = .3 + .7 * p;
+  if (b.type === 'tower') {
+    const cx = x + s / 2, cy = y + s / 2, r = s / 2 - 5;
+    ctx.fillStyle = '#A89F8C'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#8C8475';
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; ctx.fillRect(cx + Math.cos(a) * (r - 3) - 3, cy + Math.sin(a) * (r - 3) - 3, 6, 6); }
+    ctx.fillStyle = oc; ctx.beginPath(); ctx.arc(cx, cy, r * .5, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(cx - 3, cy - 3, r * .25, 0, 7); ctx.fill();
+  } else {
+    ctx.fillStyle = '#D6C39A'; ctx.fillRect(x + 4, y + 4, s - 8, s - 8);
+    const rf = ROOF[b.type] || '#6A4B3C';
+    ctx.fillStyle = rf; ctx.fillRect(x + 7, y + 7, s - 14, s - 14);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(x + 7, y + 7, s - 14, (s - 14) / 2);
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 7, y + s / 2); ctx.lineTo(x + s - 7, y + s / 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,.14)'; ctx.lineWidth = 1;
+    for (let i = x + 13; i < x + s - 8; i += 7) { ctx.beginPath(); ctx.moveTo(i, y + 8); ctx.lineTo(i, y + s - 8); ctx.stroke(); }
+    const cx = x + s / 2, cy = y + s / 2;
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#EAD9B0'; ctx.fillStyle = '#EAD9B0';
+    switch (b.type) {
+      case 'tc':
+        ctx.fillStyle = '#BCA982'; ctx.fillRect(cx - 17, cy - 17, 34, 34);
+        ctx.fillStyle = oc; ctx.fillRect(cx - 12, cy - 12, 24, 24);
+        ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(cx - 12, cy - 12, 24, 12);
+        ctx.fillStyle = '#8C7A5A'; for (const [ax, ay] of [[-17,-17],[11,-17],[-17,11],[11,11]]) ctx.fillRect(cx + ax, cy + ay, 6, 6);
+        break;
+      case 'house': ctx.fillStyle = '#5A3A26'; ctx.fillRect(x + s - 20, y + 10, 7, 7); break;
+      case 'mill': {
+        const a = (G.t * 1.2) % (Math.PI * 2);
+        ctx.strokeStyle = '#4A3322'; ctx.lineWidth = 3;
+        for (let i = 0; i < 4; i++) {
+          const aa = a + i * Math.PI / 2;
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(aa) * 30, cy + Math.sin(aa) * 30); ctx.stroke();
+          ctx.fillStyle = 'rgba(234,217,176,.85)';
+          ctx.save(); ctx.translate(cx, cy); ctx.rotate(aa); ctx.fillRect(10, 1, 19, 6); ctx.restore();
+        }
+        break;
+      }
+      case 'camp':
+        ctx.fillStyle = '#8A5A2E'; for (let i = 0; i < 3; i++) ctx.fillRect(cx - 12, cy - 9 + i * 6, 24, 4);
+        ctx.fillStyle = '#9C988C'; ctx.fillRect(cx + 6, cy + 8, 7, 6); ctx.fillStyle = '#E2B33A'; ctx.fillRect(cx - 13, cy + 9, 6, 5);
+        break;
+      case 'barracks':
+        ctx.beginPath(); ctx.moveTo(cx - 10, cy - 10); ctx.lineTo(cx + 10, cy + 10); ctx.moveTo(cx + 10, cy - 10); ctx.lineTo(cx - 10, cy + 10); ctx.stroke();
+        break;
+      case 'range':
+        ctx.beginPath(); ctx.arc(cx, cy, 11, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 7); ctx.fill();
+        break;
+      case 'stable':
+        ctx.beginPath(); ctx.arc(cx, cy - 2, 10, Math.PI * .1, Math.PI * .9, true); ctx.stroke();
+        break;
+      case 'workshop':
+        ctx.beginPath(); ctx.arc(cx, cy, 11, 0, 7); ctx.stroke();
+        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(cx - Math.cos(a) * 11, cy - Math.sin(a) * 11); ctx.lineTo(cx + Math.cos(a) * 11, cy + Math.sin(a) * 11); ctx.stroke(); }
+        break;
+    }
+    ctx.strokeStyle = oc; ctx.lineWidth = 2; ctx.strokeRect(x + 4, y + 4, s - 8, s - 8);
+  }
+  // bannière
+  ctx.strokeStyle = '#3A2A1A'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x + 6, y + 18); ctx.lineTo(x + 6, y - 2); ctx.stroke();
+  ctx.fillStyle = oc;
+  const wave = Math.sin(G.t * 4 + b.id) * 1.5;
+  ctx.beginPath(); ctx.moveTo(x + 6, y - 2); ctx.lineTo(x + 18, y + 1 + wave); ctx.lineTo(x + 6, y + 5); ctx.fill();
+  ctx.globalAlpha = 1;
+  if (!b.built && !ghost) {
+    ctx.strokeStyle = 'rgba(70,48,26,.9)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i <= s; i += 10) { ctx.moveTo(x + i, y); ctx.lineTo(x, y + i); ctx.moveTo(x + s, y + i); ctx.lineTo(x + i, y + s); }
+    ctx.stroke();
+    ctx.strokeRect(x + 1, y + 1, s - 2, s - 2);
+  }
+}
+function drawUnit(u) {
+  const oc = OWN[u.owner], dk = OWN_DARK[u.owner], f = u.face;
+  ctx.save();
+  ctx.translate(u.x, u.y);
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(2, 3, u.r + 1, u.r * .7, 0, 0, 7); ctx.fill();
+  const cf = Math.cos(f), sf = Math.sin(f);
+  if (u.type === 'knight') {
+    ctx.save(); ctx.rotate(f);
+    ctx.fillStyle = '#6B4424'; ctx.beginPath(); ctx.ellipse(0, 0, 12, 6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4A2E18'; ctx.beginPath(); ctx.ellipse(11, 0, 4, 3, 0, 0, 7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = oc; ctx.strokeStyle = dk; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#D8D3C4'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cf * 2 - sf * 5, sf * 2 + cf * 5); ctx.lineTo(cf * 18 - sf * 5, sf * 18 + cf * 5); ctx.stroke();
+  } else if (u.type === 'catapult') {
+    ctx.save(); ctx.rotate(f);
+    ctx.fillStyle = '#3A2716'; ctx.fillRect(-9, -10, 5, 4); ctx.fillRect(4, -10, 5, 4); ctx.fillRect(-9, 6, 5, 4); ctx.fillRect(4, 6, 5, 4);
+    ctx.fillStyle = '#7A5530'; ctx.fillRect(-10, -7, 20, 14);
+    ctx.strokeStyle = '#4A3322'; ctx.lineWidth = 3;
+    const sw = u.atkCd > UNITS.catapult.rof - .4 ? 1 : 0;
+    ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(sw ? 12 : -2, sw ? 0 : -1); ctx.stroke();
+    ctx.fillStyle = oc; ctx.fillRect(-10, -7, 5, 14);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = oc; ctx.strokeStyle = dk; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, u.r, 0, 7); ctx.fill(); ctx.stroke();
+    if (u.type === 'villager') {
+      ctx.fillStyle = '#E3C39A'; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, 7); ctx.fill();
+      if (u.working) {
+        const sw = Math.sin(G.t * 10) * .7;
+        ctx.strokeStyle = '#5A4630'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cf * 4, sf * 4); ctx.lineTo(cf * 4 + Math.cos(f + sw) * 8, sf * 4 + Math.sin(f + sw) * 8); ctx.stroke();
+      }
+    } else if (u.type === 'militia') {
+      ctx.fillStyle = '#9E9A90'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#E4E0D4'; ctx.lineWidth = 2;
+      const sw = u.atkCd > 1 ? .8 : 0;
+      ctx.beginPath(); ctx.moveTo(cf * 5 - sf * 4, sf * 5 + cf * 4); ctx.lineTo(Math.cos(f - sw) * 15 - sf * 4, Math.sin(f - sw) * 15 + cf * 4); ctx.stroke();
+    } else if (u.type === 'spear') {
+      ctx.fillStyle = '#9E9A90'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#8A6A40'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(-cf * 8 + sf * 3, -sf * 8 - cf * 3); ctx.lineTo(cf * 17 + sf * 3, sf * 17 - cf * 3); ctx.stroke();
+      ctx.fillStyle = '#E4E0D4'; ctx.beginPath(); ctx.arc(cf * 17 + sf * 3, sf * 17 - cf * 3, 2, 0, 7); ctx.fill();
+    } else if (u.type === 'archer') {
+      ctx.fillStyle = '#5E7A3A'; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#6B4424'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(0, 0, 9, f - 1.1, f + 1.1); ctx.stroke();
+    }
+  }
+  if (u.carry.amt > 0) { ctx.fillStyle = RES_COL[u.carry.type]; ctx.fillRect(-cf * 6 - 3, -sf * 6 - 3, 6, 6); }
+  ctx.restore();
+}
+function hpBar(x, y, w, frac, owner) {
+  ctx.fillStyle = 'rgba(20,14,8,.8)'; ctx.fillRect(x - 1, y - 1, w + 2, 5);
+  ctx.fillStyle = frac > .5 ? (owner === 0 ? '#5DA84A' : '#D2553F') : frac > .25 ? '#D9A33A' : '#C8493C';
+  ctx.fillRect(x, y, w * frac, 3);
+}
+
+let mouse = { x: 0, y: 0, in: false };
+let drag = null, mode = null;
+const markers = [];
+
+function render() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#0d0a07'; ctx.fillRect(0, 0, VW, VH);
+  if (!G) return;
+  const z = cam.z;
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, -cam.x * DPR * z, -cam.y * DPR * z);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(terrainCv, 0, 0);
+  const x0 = cam.x - 70, y0 = cam.y - 70, x1 = cam.x + VW / z + 70, y1 = cam.y + VH / z + 70;
+  // décombres
+  for (const f of G.fx) if (f.type === 'rubble') {
+    ctx.fillStyle = `rgba(60,48,36,${.55 * (1 - f.t / f.life)})`; ctx.fillRect(f.x + 4, f.y + 4, f.s - 8, f.s - 8);
+    ctx.fillStyle = `rgba(110,98,84,${.6 * (1 - f.t / f.life)})`;
+    for (let i = 0; i < 6; i++) ctx.fillRect(f.x + 8 + (i * 13) % (f.s - 16), f.y + 8 + (i * 23) % (f.s - 16), 5, 4);
+  }
+  // fermes (au sol)
+  const list = [];
+  for (const e of G.ents) {
+    if (e.dead || e.x < x0 || e.x > x1 || e.y < y0 || e.y > y1) continue;
+    if (e.kind === 'res') { if (G.expl[tIdx(e.x, e.y)]) list.push(e); continue; }
+    if (e.owner === 1) {
+      if (e.kind === 'unit' && !G.vis[tIdx(e.x, e.y)]) continue;
+      if (e.kind === 'bld' && !e.seen && !G.vis[tIdx(e.x, e.y)]) continue;
+    }
+    if (e.kind === 'bld' && e.type === 'farm') { drawBld(e); continue; }
+    list.push(e);
+  }
+  // cercles de sélection sous les unités
+  for (const e of G.sel) {
+    if (e.kind !== 'unit') continue;
+    ctx.strokeStyle = e.owner === 0 ? '#F4EBD0' : e.owner === 1 ? '#F08A7A' : '#F4EBD0'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(e.x, e.y + 2, e.r + 4, (e.r + 4) * .7, 0, 0, 7); ctx.stroke();
+  }
+  list.sort((a, b) => (a.kind === 'bld' ? a.y + a.size * T / 2 - 16 : a.y) - (b.kind === 'bld' ? b.y + b.size * T / 2 - 16 : b.y));
+  for (const e of list) {
+    if (e.kind === 'res') drawRes(e);
+    else if (e.kind === 'bld') drawBld(e);
+    else drawUnit(e);
+  }
+  // projectiles
+  for (const p of G.proj) {
+    if (!G.vis[tIdx(p.x, p.y)] && p.owner !== 0) continue;
+    const prog = p.d0 ? 1 - Math.hypot(p.tx - p.x, p.ty - p.y) / Math.max(1, p.d0) : 1;
+    const arc = Math.sin(clamp(prog, 0, 1) * Math.PI) * Math.min(40, p.d0 * .18);
+    if (p.kind === 'arrow') {
+      const a = Math.atan2(p.ty - p.y, p.tx - p.x);
+      ctx.strokeStyle = '#2B1D10'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(p.x - Math.cos(a) * 7, p.y - arc - Math.sin(a) * 7); ctx.lineTo(p.x, p.y - arc); ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.fill();
+      ctx.fillStyle = '#6E6A60'; ctx.beginPath(); ctx.arc(p.x, p.y - arc, 4.5, 0, 7); ctx.fill();
+    }
+  }
+  for (const f of G.fx) {
+    const k = f.t / f.life;
+    if (f.type === 'puff') { ctx.fillStyle = `rgba(90,20,14,${.5 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, 5 + k * 6, 0, 7); ctx.fill(); }
+    if (f.type === 'dust') { ctx.fillStyle = `rgba(150,130,100,${.6 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 18, 0, 7); ctx.fill(); }
+  }
+  // brouillard
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(fogCv, 0, 0, WW, WH);
+  // sélection : bâtiments, ressources, barres de vie
+  for (const e of G.sel) {
+    if (e.kind === 'unit') { hpBar(e.x - 11, e.y - e.r - 9, 22, e.hp / e.maxHp, e.owner); continue; }
+    ctx.strokeStyle = e.owner === 1 ? '#F08A7A' : '#F4EBD0'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.strokeRect(e.tx * T - 1, e.ty * T - 1, e.size * T + 2, e.size * T + 2); ctx.setLineDash([]);
+    if (e.kind === 'bld') {
+      hpBar(e.tx * T + 4, e.ty * T - 8, e.size * T - 8, e.hp / e.maxHp, e.owner);
+      if (e.rally && e.owner === 0) {
+        ctx.strokeStyle = 'rgba(244,235,208,.5)'; ctx.setLineDash([3, 4]);
+        ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.rally.x, e.rally.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#2B1D10'; ctx.beginPath(); ctx.moveTo(e.rally.x, e.rally.y); ctx.lineTo(e.rally.x, e.rally.y - 16); ctx.stroke();
+        ctx.fillStyle = OWN[0]; ctx.fillRect(e.rally.x, e.rally.y - 16, 10, 7);
+      }
+    }
+  }
+  // barres de vie des unités blessées visibles
+  for (const e of list) if (e.kind === 'unit' && e.hp < e.maxHp && !G.sel.includes(e)) hpBar(e.x - 9, e.y - e.r - 8, 18, e.hp / e.maxHp, e.owner);
+  // marqueurs d'ordre
+  for (let i = markers.length - 1; i >= 0; i--) {
+    const m = markers[i]; m.t += 1 / 60;
+    if (m.t > .5) { markers.splice(i, 1); continue; }
+    ctx.strokeStyle = m.c; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(m.x, m.y, 12 * (1 - m.t), 8 * (1 - m.t), 0, 0, 7); ctx.stroke();
+  }
+  // fantôme de placement
+  if (mode && mode.type === 'place' && mouse.in) {
+    const d = BLDS[mode.bt];
+    const w = screenToWorld(mouse.x, mouse.y);
+    const tx = Math.floor(w.x / T - d.size / 2 + .5), ty = Math.floor(w.y / T - d.size / 2 + .5);
+    const ok = canPlace(mode.bt, tx, ty, 0);
+    ctx.globalAlpha = .6;
+    drawBld({ type: mode.bt, owner: 0, tx, ty, size: d.size, built: true, id: 0, food: FARM_FOOD, x: (tx + d.size / 2) * T, y: (ty + d.size / 2) * T }, true);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = ok ? 'rgba(120,220,120,.25)' : 'rgba(230,70,60,.4)';
+    ctx.fillRect(tx * T, ty * T, d.size * T, d.size * T);
+  }
+  // rectangle de sélection
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (drag && drag.type === 'box' && (Math.abs(drag.x1 - drag.x0) > 4 || Math.abs(drag.y1 - drag.y0) > 4)) {
+    ctx.strokeStyle = '#F4EBD0'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(244,235,208,.08)';
+    const rx = Math.min(drag.x0, drag.x1), ry = Math.min(drag.y0, drag.y1), rw = Math.abs(drag.x1 - drag.x0), rh = Math.abs(drag.y1 - drag.y0);
+    ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx + .5, ry + .5, rw, rh);
+  }
+  if (G.paused && G.running) {
+    ctx.fillStyle = 'rgba(13,10,7,.45)'; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = '#EAD9B0'; ctx.font = '34px "IM Fell English SC", Georgia, serif'; ctx.textAlign = 'center';
+    ctx.fillText('Pause', VW / 2, VH / 2);
+    ctx.textAlign = 'start';
+  }
+}
+
+let miniT = 0;
+function renderMini() {
+  const W = mm.width, s = W / MW;
+  mctx.imageSmoothingEnabled = false;
+  mctx.drawImage(miniTerrain, 0, 0, W, W);
+  for (const e of G.ents) {
+    if (e.dead) continue;
+    const i = tIdx(e.x, e.y);
+    if (e.kind === 'res') {
+      if (!G.expl[i]) continue;
+      mctx.fillStyle = e.sub === 'tree' ? '#23431F' : RES_COL[e.rtype];
+      mctx.fillRect(e.tx * s, e.ty * s, e.size * s, e.size * s);
+    } else if (e.kind === 'bld') {
+      if (e.owner === 1 && !e.seen) continue;
+      mctx.fillStyle = OWN[e.owner]; mctx.fillRect(e.tx * s, e.ty * s, e.size * s, e.size * s);
+    }
+  }
+  mctx.drawImage(fogCv, 0, 0, W, W);
+  for (const e of G.live) {
+    if (e.kind !== 'unit' || e.dead) continue;
+    if (e.owner === 1 && !G.vis[tIdx(e.x, e.y)]) continue;
+    mctx.fillStyle = e.owner === 0 ? '#7FB2F0' : '#FF6A55';
+    mctx.fillRect(e.x / T * s - 1, e.y / T * s - 1, 3, 3);
+  }
+  for (const p of G.pings) {
+    mctx.strokeStyle = `rgba(255,90,70,${1 - p.t / 3})`; mctx.lineWidth = 2;
+    mctx.beginPath(); mctx.arc(p.x / T * s, p.y / T * s, 4 + (p.t % 1) * 10, 0, 7); mctx.stroke();
+  }
+  mctx.strokeStyle = '#F4EBD0'; mctx.lineWidth = 1;
+  mctx.strokeRect(cam.x / T * s + .5, cam.y / T * s + .5, VW / cam.z / T * s, VH / cam.z / T * s);
+}
+
+/* =====================================================================
+   Messages
+   ===================================================================== */
+const msgBox = $('#msgs');
+let lastMsg = '', lastMsgT = 0;
+function msg(text, kind) {
+  if (!G || !G.running) return;
+  const now = performance.now();
+  if (text === lastMsg && now - lastMsgT < 2500) return;
+  lastMsg = text; lastMsgT = now;
+  const d = document.createElement('div');
+  d.className = 'msg' + (kind ? ' ' + kind : '');
+  d.textContent = text;
+  msgBox.appendChild(d);
+  while (msgBox.children.length > 4) msgBox.firstChild.remove();
+  setTimeout(() => d.remove(), 4500);
+}
+
+/* =====================================================================
+   Entrées : sélection et ordres
+   ===================================================================== */
+function screenToWorld(sx, sy) { return { x: cam.x + sx / cam.z, y: cam.y + sy / cam.z }; }
+function entAt(wx, wy) {
+  let best = null, bd = 1e9;
+  for (const e of G.live) {
+    if (e.kind !== 'unit' || e.dead) continue;
+    if (e.owner === 1 && !G.vis[tIdx(e.x, e.y)]) continue;
+    const d = Math.hypot(e.x - wx, e.y - wy);
+    if (d < e.r + 6 && d < bd) { bd = d; best = e; }
+  }
+  if (best) return best;
+  if (wx < 0 || wy < 0 || wx >= WW || wy >= WH) return null;
+  const i = tIdx(wx, wy);
+  const id = G.bgrid[i];
+  if (id) {
+    const e = G.byId.get(id);
+    if (!e || e.dead) return null;
+    if (e.kind === 'res' && !G.expl[i]) return null;
+    if (e.kind === 'bld' && e.owner === 1 && !e.seen && !G.vis[i]) return null;
+    return e;
+  }
+  return null;
+}
+function ownUnits() { return G.sel.filter(e => e.owner === 0 && e.kind === 'unit'); }
+function mark(x, y, c) { markers.push({ x, y, t: 0, c }); }
+function formation(units, wx, wy, type) {
+  const n = units.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), sp = 22;
+  units.forEach((u, i) => {
+    let x = wx + (i % cols - (cols - 1) / 2) * sp, y = wy + ((i / cols | 0) - (rows - 1) / 2) * sp;
+    if (!walkPx(x, y)) { x = wx; y = wy; }
+    setOrder(u, { type, x: clamp(x, 4, WW - 4), y: clamp(y, 4, WH - 4) });
+  });
+}
+function commandAt(wx, wy, forceAMove) {
+  const mine = ownUnits();
+  if (!mine.length) return false;
+  if (forceAMove) { formation(mine, wx, wy, 'amove'); mark(wx, wy, '#F08A7A'); return true; }
+  const t = entAt(wx, wy);
+  if (t && t.owner === 1) {
+    for (const u of mine) setOrder(u, { type: 'attack', target: t });
+    mark(t.x, t.y, '#F08A7A');
+    return true;
+  }
+  const rest = [];
+  for (const u of mine) {
+    if (u.type === 'villager' && t) {
+      if (t.kind === 'res') {
+        if (u.carry.type !== t.rtype) u.carry.amt = 0;
+        setOrder(u, { type: 'gather', target: t, rtype: t.rtype, sub: t.sub, phase: 'go' });
+        continue;
+      }
+      if (t.kind === 'bld' && t.owner === 0) {
+        if (!t.built || t.hp < t.maxHp) { setOrder(u, { type: 'build', target: t }); continue; }
+        if (t.type === 'farm') { if (u.carry.type !== 'food') u.carry.amt = 0; setOrder(u, { type: 'gather', target: t, rtype: 'food', phase: 'go' }); continue; }
+        const dr = BLDS[t.type].drop;
+        if (dr && u.carry.amt > 0 && dr.includes(u.carry.type)) {
+          const prev = u.order && u.order.type === 'gather' ? u.order : null;
+          setOrder(u, { type: 'gather', target: prev ? prev.target : null, rtype: u.carry.type, sub: prev ? prev.sub : null, lx: u.x, ly: u.y, phase: 'drop', dropTo: t });
+          continue;
+        }
+      }
+    }
+    rest.push(u);
+  }
+  if (rest.length) formation(rest, wx, wy, 'move');
+  mark(t ? t.x : wx, t ? t.y : wy, t ? '#E6C27A' : '#9FE08A');
+  return true;
+}
+function setRally(wx, wy) {
+  const blds = G.sel.filter(e => e.kind === 'bld' && e.owner === 0 && BLDS[e.type].trains);
+  if (!blds.length) return false;
+  const t = entAt(wx, wy);
+  for (const b of blds) b.rally = { x: t ? t.x : wx, y: t ? t.y : wy, ent: t && t !== b ? t : null };
+  mark(wx, wy, '#E6C27A');
+  return true;
+}
+function select(list, add) {
+  if (add) { for (const e of list) if (!G.sel.includes(e)) G.sel.push(e); }
+  else G.sel = list;
+  panelSig = cmdSig = '';
+}
+let lastClick = { t: 0, e: null };
+function clickSelect(sx, sy, shift) {
+  const w = screenToWorld(sx, sy);
+  const e = entAt(w.x, w.y);
+  const now = performance.now();
+  if (e && e.owner === 0 && e.kind === 'unit' && lastClick.e && lastClick.e.type === e.type && now - lastClick.t < 350) {
+    const vis = G.live.filter(u => u.kind === 'unit' && u.owner === 0 && u.type === e.type && u.x > cam.x && u.x < cam.x + VW / cam.z && u.y > cam.y && u.y < cam.y + VH / cam.z);
+    select(vis, false);
+  } else if (e) {
+    if (shift && e.owner === 0 && e.kind === 'unit') {
+      if (G.sel.includes(e)) select(G.sel.filter(x => x !== e), false); else select([e], true);
+    } else select([e], false);
+  } else if (!shift) select([], false);
+  lastClick = { t: now, e };
+}
+function boxSelect(d, shift) {
+  const a = screenToWorld(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1)), b = screenToWorld(Math.max(d.x0, d.x1), Math.max(d.y0, d.y1));
+  const us = G.live.filter(u => u.kind === 'unit' && u.owner === 0 && u.x >= a.x - u.r && u.x <= b.x + u.r && u.y >= a.y - u.r && u.y <= b.y + u.r);
+  if (us.length) {
+    select(us, shift);
+  } else if (!shift) select([], false);
+}
+function tryPlace(sx, sy, keep) {
+  const d = BLDS[mode.bt], P = G.players[0];
+  const w = screenToWorld(sx, sy);
+  const tx = Math.floor(w.x / T - d.size / 2 + .5), ty = Math.floor(w.y / T - d.size / 2 + .5);
+  if (!canPlace(mode.bt, tx, ty, 0)) { msg('Emplacement impossible : terrain occupé, eau ou zone inexplorée.', 'bad'); return; }
+  if (!canAfford(P, d.cost)) { msg(`Il manque ${missing(P, d.cost)}.`, 'bad'); mode = null; updateModeHint(); return; }
+  pay(P, d.cost);
+  const b = placeBld(mode.bt, 0, tx, ty, false);
+  const vs = ownUnits().filter(u => u.type === 'villager');
+  for (const v of vs) setOrder(v, { type: 'build', target: b });
+  mark(b.x, b.y, '#E6C27A');
+  if (!keep || !canAfford(P, d.cost)) { mode = null; updateModeHint(); }
+}
+function primaryAction(sx, sy, shift, isTouch) {
+  if (mode && mode.type === 'place') { tryPlace(sx, sy, shift); return; }
+  const w = screenToWorld(sx, sy);
+  if (mode && mode.type === 'amove') { commandAt(w.x, w.y, true); mode = null; updateModeHint(); return; }
+  if (isTouch) {
+    const e = entAt(w.x, w.y);
+    const hasUnits = ownUnits().length > 0;
+    const singleBld = G.sel.length === 1 && G.sel[0].kind === 'bld' && G.sel[0].owner === 0;
+    if (e && e.owner === 0 && !(hasUnits && e.kind === 'bld' && (!e.built || e.hp < e.maxHp || e.type === 'farm'))) { clickSelect(sx, sy, false); return; }
+    if (hasUnits) { commandAt(w.x, w.y, false); return; }
+    if (singleBld && BLDS[G.sel[0].type].trains && G.sel[0].built) { setRally(w.x, w.y); return; }
+    clickSelect(sx, sy, false);
+    return;
+  }
+  clickSelect(sx, sy, shift);
+}
+function secondaryAction(sx, sy) {
+  if (mode) { mode = null; updateModeHint(); return; }
+  const w = screenToWorld(sx, sy);
+  if (!commandAt(w.x, w.y, false)) setRally(w.x, w.y);
+}
+
+const pointers = new Map();
+let pinch = null, spaceDown = false;
+function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  if (!G || !G.running) return;
+  cv.setPointerCapture(e.pointerId);
+  const p = pos(e);
+  mouse.x = p.x; mouse.y = p.y; mouse.in = true;
+  if (e.pointerType === 'touch') {
+    pointers.set(e.pointerId, { x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z };
+      for (const q of pointers.values()) q.moved = true;
+    }
+    return;
+  }
+  if (e.button === 1 || (e.button === 0 && spaceDown)) { drag = { type: 'pan', x: p.x, y: p.y, cx: cam.x, cy: cam.y }; e.preventDefault(); return; }
+  if (e.button === 2) { secondaryAction(p.x, p.y); return; }
+  if (e.button === 0) drag = { type: 'box', x0: p.x, y0: p.y, x1: p.x, y1: p.y, shift: e.shiftKey };
+});
+cv.addEventListener('pointermove', e => {
+  const p = pos(e);
+  if (e.pointerType === 'touch') {
+    const q = pointers.get(e.pointerId); if (!q) return;
+    const dx = p.x - q.x, dy = p.y - q.y;
+    q.x = p.x; q.y = p.y;
+    if (pointers.size === 2 && pinch) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      zoomAt(mx, my, clamp(pinch.z * d / pinch.d, .5, 1.6));
+      cam.x -= dx / 2 / cam.z; cam.y -= dy / 2 / cam.z; clampCam();
+      return;
+    }
+    if (!q.moved && Math.hypot(p.x - q.sx, p.y - q.sy) > 9) q.moved = true;
+    if (q.moved) { cam.x -= dx / cam.z; cam.y -= dy / cam.z; clampCam(); }
+    return;
+  }
+  mouse.x = p.x; mouse.y = p.y; mouse.in = true;
+  if (!drag) return;
+  if (drag.type === 'pan') { cam.x = drag.cx - (p.x - drag.x) / cam.z; cam.y = drag.cy - (p.y - drag.y) / cam.z; clampCam(); }
+  else { drag.x1 = p.x; drag.y1 = p.y; }
+});
+function endPointer(e) {
+  const p = pos(e);
+  if (e.pointerType === 'touch') {
+    const q = pointers.get(e.pointerId);
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (q && !q.moved && e.type === 'pointerup' && G && G.running) primaryAction(p.x, p.y, false, true);
+    return;
+  }
+  if (!drag) return;
+  if (drag.type === 'box' && e.type === 'pointerup') {
+    if (Math.abs(drag.x1 - drag.x0) < 5 && Math.abs(drag.y1 - drag.y0) < 5) primaryAction(p.x, p.y, drag.shift, false);
+    else if (!mode) boxSelect(drag, drag.shift);
+  }
+  drag = null;
+}
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && !drag) mouse.in = false; });
+function zoomAt(sx, sy, nz) {
+  const w = screenToWorld(sx, sy);
+  cam.z = nz;
+  cam.x = w.x - sx / cam.z; cam.y = w.y - sy / cam.z;
+  clampCam();
+}
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (!G) return;
+  const p = pos(e);
+  zoomAt(p.x, p.y, clamp(cam.z * Math.exp(-e.deltaY * .0015), .5, 1.6));
+}, { passive: false });
+
+// mini-carte
+let miniDrag = false;
+function miniPos(e) { const r = mm.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * WW, y: (e.clientY - r.top) / r.height * WH }; }
+mm.addEventListener('contextmenu', e => e.preventDefault());
+mm.addEventListener('pointerdown', e => {
+  if (!G || !G.running) return;
+  const w = miniPos(e);
+  if (e.button === 2) { if (!commandAt(w.x, w.y, false)) setRally(w.x, w.y); return; }
+  miniDrag = true; mm.setPointerCapture(e.pointerId); centerOn(w.x, w.y);
+});
+mm.addEventListener('pointermove', e => { if (miniDrag) { const w = miniPos(e); centerOn(w.x, w.y); } });
+mm.addEventListener('pointerup', () => miniDrag = false);
+mm.addEventListener('pointercancel', () => miniDrag = false);
+
+// clavier
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (!G || !G.running) return;
+  const k = e.key;
+  if (k.startsWith('Arrow')) { keys[k] = true; e.preventDefault(); return; }
+  if (k === ' ') { spaceDown = true; e.preventDefault(); return; }
+  if (k === 'Escape') { if (mode) { mode = null; updateModeHint(); } else select([], false); return; }
+  if (k === 'p' || k === 'P') { togglePause(); return; }
+  if (G.paused) return;
+  if (/^[1-9]$/.test(k)) {
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); G.groups[k] = G.sel.filter(x => x.owner === 0).map(x => x.id); msg(`Groupe ${k} défini.`); }
+    else if (G.groups[k]) {
+      const g = G.groups[k].map(id => G.byId.get(id)).filter(Boolean);
+      if (g.length) {
+        const again = G.sel.length === g.length && g.every(x => G.sel.includes(x));
+        select(g, false);
+        if (again) { const cx = g.reduce((s, u) => s + u.x, 0) / g.length, cy = g.reduce((s, u) => s + u.y, 0) / g.length; centerOn(cx, cy); }
+      }
+    }
+    return;
+  }
+  if (k === 'h' || k === 'H') { const tc = G.live.find(b => b.kind === 'bld' && b.type === 'tc' && b.owner === 0); if (tc) { select([tc], false); centerOn(tc.x, tc.y); } return; }
+  if (k === '.' || k === ';') { selectIdle(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const c = curCmds.find(c => c.key && c.key.toLowerCase() === k.toLowerCase());
+  if (c) { e.preventDefault(); doAct(c.act); }
+});
+window.addEventListener('keyup', e => { if (e.key.startsWith('Arrow')) keys[e.key] = false; if (e.key === ' ') spaceDown = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; spaceDown = false; });
+function panCam(dt) {
+  const s = 800 * dt / cam.z;
+  if (keys.ArrowLeft) cam.x -= s; if (keys.ArrowRight) cam.x += s;
+  if (keys.ArrowUp) cam.y -= s; if (keys.ArrowDown) cam.y += s;
+  if (keys.ArrowLeft || keys.ArrowRight || keys.ArrowUp || keys.ArrowDown) clampCam();
+}
+
+let idleIdx = 0;
+function selectIdle() {
+  const idle = G.live.filter(u => u.kind === 'unit' && u.owner === 0 && u.type === 'villager' && !u.order);
+  if (!idle.length) { msg('Aucun villageois inactif.'); return; }
+  const u = idle[idleIdx++ % idle.length];
+  select([u], false); centerOn(u.x, u.y);
+}
+function togglePause() {
+  if (!G || !G.running) return;
+  G.paused = !G.paused;
+  $('#b-pause').textContent = G.paused ? 'Reprendre' : 'Pause';
+}
+$('#b-idle').addEventListener('click', () => G && G.running && selectIdle());
+$('#b-army').addEventListener('click', () => {
+  if (!G || !G.running) return;
+  const a = G.live.filter(u => u.kind === 'unit' && u.owner === 0 && u.type !== 'villager');
+  if (!a.length) { msg("Vous n'avez aucune unité militaire."); return; }
+  select(a, false);
+});
+$('#b-pause').addEventListener('click', togglePause);
+
+/* =====================================================================
+   Panneau d'interface
+   ===================================================================== */
+const infoEl = $('#info'), cmdsEl = $('#cmds');
+let panelSig = '', cmdSig = '', curCmds = [], uiT = 0;
+const iconHtml = k => `<i class="ic ${k}"></i>`;
+function costHtml(c) { return c ? Object.keys(c).map(k => `<span class="c">${iconHtml(k)}${c[k]}</span>`).join('') : ''; }
+
+function orderText(u) {
+  const o = u.order;
+  if (!o) return 'Inactif';
+  if (o.type === 'gather') return o.phase === 'drop' ? `Rapporte ${RES_NAME[u.carry.type] || ''}` : `Récolte : ${RES_NAME[o.rtype]}`;
+  if (o.type === 'build') return o.target && o.target.built ? 'Répare' : 'Construit';
+  if (o.type === 'attack') return 'Combat';
+  if (o.type === 'amove') return 'Attaque-marche';
+  return 'En marche';
+}
+function renderInfo() {
+  const s = G.sel;
+  let h = '', sig = '';
+  if (!s.length) {
+    sig = 'none';
+    h = `<p class="i-name">Votre royaume</p><p class="hint">Sélectionnez un villageois pour bâtir, puis clic droit sur les arbres, baies, mines ou fermes pour récolter. Sélectionnez l'Hôtel de ville pour former des villageois et passer à l'âge suivant. <kbd>H</kbd> Hôtel de ville · <kbd>.</kbd> villageois inactif</p>`;
+  } else if (s.length === 1) {
+    const e = s[0];
+    if (e.kind === 'unit') {
+      const D = UNITS[e.type];
+      sig = [e.id, Math.ceil(e.hp), orderText(e), e.carry.amt].join('|');
+      h = `<p class="i-name">${D.name}</p><p class="i-sub">${e.owner === 0 ? 'Votre unité' : 'Unité ennemie'} · ${orderText(e)}</p>
+        <div class="hp${e.hp / e.maxHp < .35 ? ' low' : ''}"><i style="width:${e.hp / e.maxHp * 100}%"></i></div>
+        <div class="i-row"><span>PV <b>${Math.ceil(e.hp)}/${e.maxHp}</b></span><span>Attaque <b>${D.atk}</b></span><span>Armure <b>${D.armor}</b></span><span>Portée <b>${D.range < 1 ? 'mêlée' : D.range}</b></span>
+        ${e.carry.amt > 0 ? `<span>Porte <b>${Math.floor(e.carry.amt)}</b> ${RES_NAME[e.carry.type]}</span>` : ''}</div>`;
+    } else if (e.kind === 'bld') {
+      const D = BLDS[e.type];
+      const q0 = e.queue[0];
+      const qTime = q0 ? (q0.type === 'age' ? AGES[q0.age].time : UNITS[q0.type].time) : 1;
+      sig = [e.id, Math.ceil(e.hp), e.built, Math.floor(e.prog), e.food, e.queue.map(q => q.type).join(), Math.floor(e.qT * 4)].join('|');
+      let status = e.built ? (D.drop ? `Dépôt : ${D.drop.map(k => RES_NAME[k]).join(', ')}` : D.pop ? `+${D.pop} population` : '') : `En construction · ${Math.floor(e.prog / D.time * 100)} %`;
+      if (e.type === 'farm' && e.built) status = `Nourriture restante : ${Math.floor(e.food)}`;
+      h = `<p class="i-name">${D.name}</p><p class="i-sub">${e.owner === 0 ? 'Votre bâtiment' : 'Bâtiment ennemi'}${status ? ' · ' + status : ''}</p>
+        <div class="hp${e.hp / e.maxHp < .35 ? ' low' : ''}"><i style="width:${e.hp / e.maxHp * 100}%"></i></div>
+        <div class="i-row"><span>PV <b>${Math.ceil(e.hp)}/${e.maxHp}</b></span><span>Armure <b>${D.armor}</b></span>${D.atk ? `<span>Attaque <b>${D.atk}</b> · portée <b>${D.range}</b></span>` : ''}</div>`;
+      if (e.owner === 0 && e.queue.length) {
+        h += `<div class="queue">` + e.queue.map((q, i) => `<span class="q" data-cancel="${i}" title="Annuler et rembourser">${q.type === 'age' ? AGES[q.age].name : UNITS[q.type].name}${i === 0 ? `<span class="bar" style="width:${e.qT / qTime * 100}%"></span>` : ''}</span>`).join('') + `</div>`;
+      }
+    } else {
+      const D = RES_DEF[e.sub];
+      sig = [e.id, Math.floor(e.amount)].join('|');
+      h = `<p class="i-name">${D.name}</p><p class="i-sub">Ressource : ${RES_NAME[e.rtype]}</p><div class="i-row"><span>Restant <b>${Math.floor(e.amount)}</b></span></div>`;
+    }
+  } else {
+    const c = {};
+    for (const e of s) { const n = e.kind === 'unit' ? UNITS[e.type].name : e.kind === 'bld' ? BLDS[e.type].name : RES_DEF[e.sub].name; c[n] = (c[n] || 0) + 1; }
+    sig = JSON.stringify(c) + s.reduce((a, e) => a + Math.ceil(e.hp || 0), 0);
+    const hp = s.reduce((a, e) => a + (e.hp || 0), 0), mx = s.reduce((a, e) => a + (e.maxHp || 0), 0);
+    h = `<p class="i-name">${s.length} unités</p><div class="hp"><i style="width:${mx ? hp / mx * 100 : 100}%"></i></div><div class="group">` +
+      Object.entries(c).map(([n, k]) => `<span class="chip"><b>${k}</b> × ${n}</span>`).join('') + `</div>`;
+  }
+  if (sig !== panelSig) { panelSig = sig; infoEl.innerHTML = h; }
+}
+infoEl.addEventListener('pointerdown', e => {
+  const q = e.target.closest('[data-cancel]');
+  if (!q || !G) return;
+  const b = G.sel[0];
+  if (b && b.kind === 'bld' && b.owner === 0) { cancelQueue(b, +q.dataset.cancel); panelSig = ''; }
+});
+
+function getCmds() {
+  const s = G.sel.filter(e => e.owner === 0);
+  if (!s.length) return [];
+  const P = G.players[0], out = [];
+  const units = s.filter(e => e.kind === 'unit');
+  if (units.length) {
+    if (units.some(u => u.type === 'villager')) {
+      for (const t of BUILD_LIST) {
+        const d = BLDS[t];
+        let lock = '';
+        if ((d.age || 1) > P.age) lock = AGES[d.age].name;
+        else if (d.req && !reqMet(0, t)) lock = BLDS[d.req].name + ' requis';
+        out.push({ act: 'build:' + t, key: d.key, name: d.name, cost: d.cost, lock, short: !canAfford(P, d.cost), tip: `${d.name} — ${d.desc}` });
+      }
+    }
+    if (units.some(u => u.type !== 'villager')) out.push({ act: 'amove', key: 'A', name: 'Attaque-marche', tip: 'Avance vers un point en attaquant tout ennemi rencontré.' });
+    out.push({ act: 'stop', key: 'S', name: 'Arrêt', tip: 'Annule les ordres en cours.' });
+    return out;
+  }
+  const b = s[0];
+  if (b.kind !== 'bld' || !b.built || !s.every(x => x.type === b.type)) return out;
+  const D = BLDS[b.type];
+  for (const t of D.trains || []) {
+    const U = UNITS[t];
+    out.push({ act: 'train:' + t, key: U.key, name: U.name, cost: U.cost, lock: (U.age || 1) > P.age ? AGES[U.age].name : '', short: !canAfford(P, U.cost), tip: `${U.name} — ${U.desc} PV ${U.hp}, attaque ${U.atk}.` });
+  }
+  if (b.type === 'tc' && P.age < 3) {
+    const A = AGES[P.age + 1];
+    out.push({ act: 'age', key: 'G', name: A.name, cost: A.cost, lock: P.researching ? 'Recherche en cours' : '', short: !canAfford(P, A.cost),
+      tip: P.age === 1 ? 'Débloque piquiers, archers, cavaliers et tours.' : 'Débloque les catapultes et l’atelier de siège.' });
+  }
+  return out;
+}
+function renderCmds() {
+  curCmds = getCmds();
+  const sig = curCmds.map(c => c.act + (c.lock ? 'L' : '') + (c.short ? 'S' : '')).join(',') + '#' + G.sel.map(e => e.id).join(',');
+  if (sig === cmdSig) return;
+  cmdSig = sig;
+  if (!curCmds.length) { cmdsEl.innerHTML = `<p class="hint" style="grid-column:1/-1;margin:0">${G.sel.length ? 'Aucune action disponible.' : 'Les actions de la sélection apparaissent ici.'}</p>`; return; }
+  cmdsEl.innerHTML = curCmds.map((c, i) =>
+    `<button class="cmd${c.lock ? ' locked' : c.short ? ' short' : ''}" data-i="${i}" title="${esc(c.tip || '')}"><span class="k">${c.key}</span><span class="nm">${c.name}</span>${c.lock ? `<span class="lock">${c.lock}</span>` : `<span class="cost">${costHtml(c.cost)}</span>`}</button>`).join('');
+}
+cmdsEl.addEventListener('click', e => {
+  const b = e.target.closest('.cmd');
+  if (!b || !G || !G.running) return;
+  const c = curCmds[+b.dataset.i];
+  if (c) doAct(c.act);
+});
+function doAct(act) {
+  if (!G || G.paused) return;
+  const c = curCmds.find(c => c.act === act);
+  const P = G.players[0];
+  if (c && c.lock) { msg(c.lock === 'Recherche en cours' ? 'Une recherche est déjà en cours.' : `Nécessite : ${c.lock}.`, 'bad'); return; }
+  const [a, t] = act.split(':');
+  if (a === 'build') {
+    if (!canAfford(P, BLDS[t].cost)) { msg(`Il manque ${missing(P, BLDS[t].cost)}.`, 'bad'); return; }
+    mode = { type: 'place', bt: t };
+  } else if (a === 'train') {
+    const bs = G.sel.filter(e => e.kind === 'bld' && e.owner === 0 && e.built);
+    bs.sort((x, y) => x.queue.length - y.queue.length);
+    if (bs[0]) queueTrain(0, bs[0], t);
+  } else if (a === 'age') {
+    const tc = G.sel.find(e => e.type === 'tc');
+    if (tc) queueAge(0, tc);
+  } else if (a === 'amove') mode = { type: 'amove' };
+  else if (a === 'stop') for (const u of ownUnits()) setOrder(u, null);
+  cmdSig = panelSig = '';
+  updateModeHint();
+}
+function updateModeHint() {
+  const el = $('#modehint');
+  if (!mode) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = mode.type === 'place' ? `Placer : ${BLDS[mode.bt].name} · Maj pour en poser plusieurs · Échap ou clic droit pour annuler` : 'Attaque-marche : choisissez la destination · Échap pour annuler';
+}
+
+const topEls = { food: $('#r-food'), wood: $('#r-wood'), gold: $('#r-gold'), stone: $('#r-stone'), pop: $('#r-pop'), age: $('#age'), clock: $('#clock'), idle: $('#n-idle') };
+const topCache = {};
+function setTop(k, v) { if (topCache[k] !== v) { topCache[k] = v; topEls[k].textContent = v; } }
+function uiTick(dt) {
+  if (!G) return;
+  const P = G.players[0];
+  for (const k of RES_KEYS) setTop(k, String(Math.floor(P.res[k])));
+  setTop('pop', `${P.pop}/${P.popCap}`);
+  setTop('age', AGES[P.age].name);
+  setTop('clock', fmtTime(G.t));
+  uiT -= dt; miniT -= dt;
+  if (uiT <= 0) {
+    uiT = .2;
+    const idle = G.live.filter(u => u.kind === 'unit' && u.owner === 0 && u.type === 'villager' && !u.order).length;
+    setTop('idle', String(idle));
+    $('#b-idle').classList.toggle('alert', idle > 0);
+    renderInfo(); renderCmds();
+  }
+  if (miniT <= 0) { miniT = .1; renderMini(); }
+}
+
+/* =====================================================================
+   Démarrage
+   ===================================================================== */
+let last = performance.now();
+function frame(now) {
+  const rdt = Math.min(.05, (now - last) / 1000); last = now;
+  if (G && G.running && !G.paused) update(rdt);
+  if (G && G.running) panCam(rdt);
+  render();
+  uiTick(rdt);
+  requestAnimationFrame(frame);
+}
+function start() {
+  const diff = (document.querySelector('input[name="diff"]:checked') || {}).value || 'normal';
+  if (!G || G.over || G.diff !== diff || G.t > 0) newGame(diff);
+  G.running = true; G.paused = false;
+  $('#b-pause').textContent = 'Pause';
+  $('#overlay').hidden = true;
+  mode = null; updateModeHint();
+  msgBox.innerHTML = '';
+  msg("Villageois : récoltez baies et bois, puis construisez des maisons.", 'good');
+  const tc = G.live.find(b => b.kind === 'bld' && b.type === 'tc' && b.owner === 0) || G.ents.find(b => b.type === 'tc' && b.owner === 0);
+  if (tc) select([tc], false);
+}
+$('#b-start').addEventListener('click', start);
+$('#b-again').addEventListener('click', () => {
+  $('#card-end').hidden = true; $('#card-start').hidden = false;
+  newGame((document.querySelector('input[name="diff"]:checked') || {}).value || 'normal');
+});
+try { const d = localStorage.getItem('cdf-diff'); if (d && DIFF[d]) document.getElementById('d-' + d).checked = true; } catch (e) {}
+document.querySelectorAll('input[name="diff"]').forEach(r => r.addEventListener('change', () => { try { localStorage.setItem('cdf-diff', r.value); } catch (e) {} }));
+
+resize();
+newGame((document.querySelector('input[name="diff"]:checked') || {}).value || 'normal');
+requestAnimationFrame(frame);
+})();
+</script>
