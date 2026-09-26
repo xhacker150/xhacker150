@@ -71,7 +71,7 @@ rps-crm-creances/
 
 ### 2. Vercel
 Importer le dépôt, **Root Directory = `rps-crm-creances`**, variables de `.env.example` : `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `PONT_API_KEYS`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clé `sb_publishable_…`), `SUPABASE_SECRET_KEYS` (clé `sb_secret_…`, serveur seul), `PONT_API_KEYS`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`,
 et facultatif `RESEND_API_KEY` / `EMAIL_EXPEDITEUR` (alertes et récapitulatif). Crons de `vercel.json` : recalcul +
 sauvegarde + contrôle de santé (04:00 UTC), récapitulatif (17:00 UTC).
 

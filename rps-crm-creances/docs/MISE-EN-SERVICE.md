@@ -30,9 +30,11 @@ Correction de dépôt faite à cette occasion : `vers_numeric()` utilise désorm
 3. **SQL Editor** : `SELECT installer_dg('adresse-du-dg');` — le DG active ensuite les autres comptes dans
    Paramètres → Utilisateurs de l'application. Le contrôle de santé signale « Aucun DG actif » tant que ce
    n'est pas fait.
-4. **Project Settings → API** : relever la clé `anon` (ou `sb_publishable_…`) et la clé `service_role`.
+4. **Project Settings → API Keys** : utiliser la clé **publiable** `sb_publishable_…` et créer une clé **secrète**
+   `sb_secret_…` (décision du chantier passerelle : les anciennes clés `anon` / `service_role` seront désactivées
+   avec l'accord du DG ; le code les accepte encore en repli).
 5. **Vercel** : importer le dépôt, Root Directory `rps-crm-creances`, variables de `.env.example`
-   (`NEXT_PUBLIC_SUPABASE_URL` = URL ci-dessus, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   (`NEXT_PUBLIC_SUPABASE_URL` = URL ci-dessus, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEYS`,
    `PONT_API_KEYS` et `CRON_SECRET` générés aléatoirement, `NEXT_PUBLIC_APP_URL`, facultatif `RESEND_API_KEY` /
    `EMAIL_EXPEDITEUR`). Les crons de `vercel.json` sont créés au déploiement.
 6. **Vérification applicative** après déploiement : connexion DG, écran SOURCE (mode fichiers) avec le jeu

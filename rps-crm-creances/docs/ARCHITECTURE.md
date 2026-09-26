@@ -116,8 +116,11 @@ relance : crédits ≥ 25 % du solde à la relance ; promesse échue + 7 j → �
 - **Réseau** : le pont sort en HTTPS vers Vercel ; rien n'entre. Le service FastAPI LAN est facultatif et ne sert que
   le contrat `/health`, `/crm/extract` de la maquette.
 - **API du pont** : en-tête `X-API-Key` (liste `PONT_API_KEYS`, rotation à chaud, comparaison en temps constant),
-  limitation de débit, corps > 4,4 Mo refusés, journalisation de chaque appel ; clé service_role utilisée
-  uniquement côté serveur (`src/lib/supabase/admin.ts`), jamais exposée au navigateur.
+  limitation de débit, corps > 4,4 Mo refusés, journalisation de chaque appel ; clé **secrète** Supabase
+  (`sb_secret_…`, rôle service_role, variable `SUPABASE_SECRET_KEYS` avec rotation « nouvelle,ancienne ») utilisée
+  uniquement côté serveur (`src/lib/supabase/admin.ts`), jamais exposée au navigateur ; le navigateur n'a que la
+  clé **publiable** `sb_publishable_…` (`src/lib/supabase/cles.ts`). Anciennes clés JWT acceptées en repli jusqu'à
+  leur désactivation par le DG.
 - **Utilisateurs** : Supabase Auth, comptes nominatifs créés par le DG (pas d'inscription libre), profils créés
   **inactifs**, DG désigné à l'installation (`installer_dg`), `profils.role` ∈ {dg, recouvrement, compta,
   exploitation, contrôle}, rôle et état modifiables par le DG seul (trigger). RLS sur toutes les tables : lecture

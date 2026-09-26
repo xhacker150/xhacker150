@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { clePubliable, urlSupabase } from "./cles";
 
 const ROUTES_PUBLIQUES = ["/login", "/api/cron", "/api/pont", "/manifest.webmanifest", "/sw.js", "/hors-ligne"];
 
@@ -11,7 +12,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   let supabaseResponse = NextResponse.next({ request });
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const supabase = createServerClient(urlSupabase(), clePubliable(), {
     cookies: {
       getAll() {
         return request.cookies.getAll();
