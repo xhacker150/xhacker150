@@ -1,0 +1,9 @@
+{
+  "_commentaire": "Annexe confidentielle CDC-05 §3.5 : copier en recette/temoins.json (ignoré par git) et renseigner les chiffres opposables. Jamais dans le dépôt.",
+  "temoins": [
+    { "code": "T11", "compte": "411xxxxx", "date_arrete": "2026-08-20", "solde_attendu": 0 },
+    { "code": "T5",  "compte": "411xxxxx", "date_arrete": "2026-08-20", "solde_attendu": -0, "note": "créditeur" },
+    { "code": "T9",  "compte": "411xxxxx", "date_arrete": "2026-08-20", "solde_attendu": 0, "debits_hors_ran_attendus": 0 }
+  ],
+  "bouclage_top_10": { "date_arrete": "2026-08-20", "total_attendu": 0 }
+}

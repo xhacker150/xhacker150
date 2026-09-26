@@ -1,0 +1,64 @@
+openapi: 3.0.3
+info:
+  title: API du pont RPS (lecture seule Sage + base CRM)
+  version: "1.0"
+  description: >
+    Service sur RPS-SERVER (LAN). SELECT-only vers Sage. Seule écriture :
+    la base CRM. Chaque réponse porte date_extraction. Auth : en-tête
+    X-API-Key (par application) + jeton utilisateur SSO (Bearer).
+servers:
+  - url: http://rps-server:8080/api
+paths:
+  /health:
+    get: {summary: État du service et des connexions SQL, responses: {"200": {description: OK}}}
+  /crm/extract:
+    get:
+      summary: Équivalent exact des extraits qr0/qr1/qr3/qr4 en un appel (contrat de la maquette)
+      responses:
+        "200":
+          description: "{date, clients[[CT_Num,CT_Intitule]], facturation[[CT_Num,mois,ht]], ecritures[[CT_Num,d,JO_Num,EC_Piece,EC_RefPiece,EC_Intitule,EC_Sens,EC_Montant]], livraisons[[CT_Num,d,DO_Piece,AR_Ref,DL_Design,DL_Qte,DL_MontantHT,DE_Intitule]]}"
+  /clients:
+    get:
+      summary: Comptes 411 hors 41180 avec soldes économiques calculés
+      parameters: [{name: limit, in: query, schema: {type: integer}}, {name: offset, in: query, schema: {type: integer}}]
+      responses: {"200": {description: Liste (compte, nom, ran, facture, regle, debits_hors_ran, solde, dernier_reglement, derniere_facture, typologie, cadence_jours, seuil_alerte_jours)}}
+  /clients/{compte}:
+    get: {summary: "Fiche 360° : mensuel, écritures une à une, livraisons, actions CRM", responses: {"200": {description: Fiche}}}
+  /clients/{compte}/situation.pdf:
+    get: {summary: Document officiel 4 volets (gabarit charte RPS), responses: {"200": {description: PDF}}}
+  /stations/{num}/ventes:
+    get:
+      summary: Ventes gescom de la station (le numéro fait foi)
+      parameters: [{name: du, in: query, schema: {type: string}}, {name: au, in: query, schema: {type: string}}]
+      responses: {"200": {description: Ventes}}
+  /alertes:
+    get: {summary: Alertes du jour (règles claude_alertes), responses: {"200": {description: Alertes}}}
+  /tresorerie:
+    get: {summary: "Soldes banques 521x, caisses 5711x, mobile money 5381x", responses: {"200": {description: Position}}}
+  /crm/actions:
+    post: {summary: "Créer une action (relance, promesse{montant,echeance}, contentieux, note) — écrit dans la base CRM, jamais dans Sage", responses: {"201": {description: Créée}}}
+  /crm/actions/{id}:
+    patch: {summary: Modifier / clore une action, responses: {"200": {description: OK}}}
+components:
+  securitySchemes:
+    apiKey: {type: apiKey, in: header, name: X-API-Key}
+    sso: {type: http, scheme: bearer}
+security: [{apiKey: [], sso: []}]
+
+# ---------------------------------------------------------------------------
+# Extension v1.1 — poussée de l'extraction vers le CRM hébergé (Supabase + Vercel).
+# Le serveur RPS pousse ; le CRM n'appelle jamais le LAN. Auth : X-API-Key = PONT_API_KEY.
+# Implémenté dans src/app/api/pont/ ; client de référence : pont/pont_rps.py (commande « pousser »).
+# ---------------------------------------------------------------------------
+x-crm-paths:
+  /api/pont/health:
+    get: {summary: État du CRM et date de l'extraction active, responses: {"200": {description: "{ok, date_extraction, saisi_jusquau, source, nb_clients}"}}}
+  /api/pont/extract:
+    post: {summary: Extraction complète en un appel (< 4 Mo) — même corps que /crm/extract, responses: {"201": {description: "{id, date_extraction, lignes, clients, actions_fermees_auto}"}}}
+    get: {summary: Extraction active au format /crm/extract (mode API de la maquette), responses: {"200": {description: Extraction}}}
+  /api/pont/extractions:
+    post: {summary: "Ouvre une extraction par lots : {date, saisi_jusquau?, commentaire?}", responses: {"201": {description: "{id, date_extraction}"}}}
+  /api/pont/extractions/{id}/lignes:
+    post: {summary: "Ajoute un lot : {jeu: clients|facturation|ecritures|livraisons, lignes: [[...]]} (5 000 lignes max)", responses: {"200": {description: "{lignes_ajoutees}"}}}
+  /api/pont/extractions/{id}/activer:
+    post: {summary: "Active l'extraction (remplace la précédente, recalcule soldes/cadences/scores, ferme les actions couvertes)", responses: {"200": {description: "{clients, actions_fermees_auto, date}"}}}
