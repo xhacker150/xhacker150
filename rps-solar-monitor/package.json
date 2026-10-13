@@ -1,0 +1,25 @@
+{
+  "name": "rps-solar-monitor",
+  "version": "1.0.0",
+  "description": "Suivi des systèmes solaires (onduleurs Felicity Solar) des stations RPS",
+  "main": "src/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js",
+    "creer-utilisateur": "node scripts/creer-utilisateur.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "chart.js": "^4.4.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "json-bigint": "^1.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.3"
+  }
+}

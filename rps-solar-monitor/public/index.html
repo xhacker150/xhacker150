@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RPS Solaire</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%23eda100'/%3E%3Cg stroke='%23eda100' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="barre">
+    <a class="marque" href="#/">RPS Solaire</a>
+    <nav id="nav" class="nav" hidden>
+      <a href="#/" data-route="apercu">Aperçu</a>
+      <a href="#/rapports" data-route="rapports">Rapports</a>
+      <a href="#/commandes" data-route="commandes">Commandes</a>
+      <a href="#/admin" data-route="admin" data-role="admin">Administration</a>
+    </nav>
+    <div id="session" class="session" hidden>
+      <span id="session-nom"></span>
+      <button id="deconnexion" class="bouton-lien" type="button">Déconnexion</button>
+    </div>
+  </header>
+
+  <main id="contenu" class="contenu" tabindex="-1">
+    <p class="chargement">Chargement…</p>
+  </main>
+
+  <div id="notification" class="notification" role="status" aria-live="polite" hidden></div>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
